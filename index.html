@@ -29,6 +29,8 @@
   .card { background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 16px; margin: 12px 0; }
   .next .label { font-size: 12px; text-transform: uppercase; letter-spacing: .06em; color: var(--accent); font-weight: 600; }
   .next h2 { margin: 6px 0 4px; font-size: 22px; }
+  .next .kind { font-size: 14px; margin: 2px 0 8px; }
+  .kindline { font-size: 12px; margin-top: 2px; }
   .next .why { color: var(--muted); font-size: 14px; margin: 6px 0 12px; }
   .stats { display: flex; gap: 16px; margin: 8px 0; }
   .stats div { font-size: 13px; color: var(--muted); }
@@ -42,6 +44,7 @@
   .row { display: grid; grid-template-columns: 52px 1fr auto; gap: 10px; align-items: center; padding: 10px 0; border-bottom: 1px solid var(--line); }
   .row:last-child { border-bottom: 0; }
   .wait { text-align: center; font-weight: 700; font-size: 18px; line-height: 1; }
+  .wait.time { font-size: 14px; }
   .wait small { display: block; font-size: 10px; font-weight: 500; color: var(--muted); margin-top: 3px; }
   .w-good { color: var(--good); } .w-mid { color: var(--mid); } .w-bad { color: var(--bad); }
   .name { font-size: 15px; }
@@ -75,12 +78,13 @@
   <div class="tabs">
     <button data-tab="todo" class="on">A fazer</button>
     <button data-tab="must">★ Prioridades</button>
+    <button data-tab="shows">Shows</button>
     <button data-tab="done">Feitas</button>
     <button data-tab="closed">Fechadas</button>
   </div>
   <div class="card" id="list" style="padding:4px 16px"></div>
 
-  <p class="muted">★ marca prioridade (peso 3×) · ✓ marca como feita (e define sua posição ali) · ✕ pula hoje · 📍 “estou aqui” quando o GPS não ajuda.</p>
+  <p class="muted">Em Shows, ★ num show faz o roteiro guardar tempo para chegar a ele no horário. ★ marca prioridade (peso 3×) · ✓ marca como feita (e define sua posição ali) · ✕ pula hoje · 📍 “estou aqui” quando o GPS não ajuda.</p>
   <footer>Dados de fila: <a href="https://themeparks.wiki" target="_blank" rel="noopener">ThemeParks.wiki</a>. Atualiza sozinho a cada 5 min.</footer>
 </main>
 
@@ -90,6 +94,228 @@ const WALK_M_PER_MIN = 75;     // ~4,5 km/h
 const PATH_FACTOR = 1.35;      // caminhos de parque não são linha reta
 const RIDE_MIN = 6;            // duração média do brinquedo + embarque
 const REFRESH_MS = 5 * 60 * 1000;
+
+// ---------- catálogo: tipo | intensidade (1 leve, 2 moderada, 3 radical, 0 n/a) | observação ----------
+// A API não informa o tipo de atração; este catálogo cobre os parques de Orlando.
+// A chave é um trecho do nome normalizado (minúsculas, sem acentos/espaços/pontuação). A ordem importa.
+const CATALOG = [
+  // Magic Kingdom
+  ["smallworld", "🚤 Barco no escuro|1|Canções e bonecos do mundo todo"],
+  ["piratesadventure", "🗺️ Caça ao tesouro interativa|1|"],
+  ["astroorbiter", "🚀 Giratório no alto|1|Fica bem alto; quem tem medo de altura pode estranhar"],
+  ["bigthunder", "🎢 Montanha-russa|2|Trem de mina no velho oeste, sem inversões"],
+  ["buzzlightyear", "🔫 Dark ride interativo|1|Você atira em alvos e marca pontos"],
+  ["caseyjr", "💦 Playground aquático|1|Molha"],
+  ["cinderellacastle", "🏰 Castelo (passeio a pé)|1|"],
+  ["countrybear", "🎭 Show de animatrônicos|1|Sentado, ar-condicionado"],
+  ["dumbo", "🎠 Giratório infantil|1|"],
+  ["enchantedtales", "🎭 Show interativo|1|Crianças participam da história"],
+  ["hauntedmansion", "👻 Dark ride (casa mal-assombrada)|1|Escuro, sustos leves"],
+  ["junglecruise", "🚤 Passeio de barco com guia|1|Piadas do guia (em inglês)"],
+  ["jinglecruise", "🚤 Passeio de barco com guia|1|Versão de Natal, piadas do guia (em inglês)"],
+  ["madteaparty", "☕ Xícaras giratórias|2|Você controla o giro; pode dar tontura"],
+  ["mainstreetvehicles", "🚋 Veículos de época|1|"],
+  ["philharmagic", "🎬 Cinema 3D|1|"],
+  ["laughfloor", "🎭 Show de comédia interativo|1|Em inglês"],
+  ["peterpan", "🏴‍☠️ Dark ride suspenso|1|Barquinho voando sobre Londres"],
+  ["piratesofthecaribbean", "🚤 Barco no escuro|1|Uma quedinha curta"],
+  ["carouselofprogress", "🎭 Teatro giratório de animatrônicos|1|"],
+  ["sevendwarfs", "🎢 Montanha-russa familiar|2|Carrinhos balançam nas curvas"],
+  ["spacemountain", "🎢 Montanha-russa no escuro|2|Curvas e quedas rápidas no escuro total"],
+  ["swissfamily", "🌳 Casa na árvore (a pé)|1|Muita escada"],
+  ["barnstormer", "🎢 Montanha-russa infantil|1|Curtinha"],
+  ["hallofpresidents", "🎭 Teatro de animatrônicos|1|"],
+  ["magiccarpets", "🎠 Giratório infantil|1|Pode levar um esguicho de água"],
+  ["winniethepooh", "🧸 Dark ride|1|"],
+  ["tiana", "💦 Tronco com queda|2|Molha; queda grande no final"],
+  ["tomorrowlandspeedway", "🏎️ Carrinho que você dirige|1|"],
+  ["peoplemover", "🚝 Passeio panorâmico|1|Ótimo para descansar"],
+  ["tronlightcycle", "🎢 Montanha-russa de lançamento|3|Lançamento forte, posição de moto"],
+  ["regalcarrousel", "🎠 Carrossel|1|"],
+  ["underthesea", "🐚 Dark ride|1|"],
+  ["railroad", "🚂 Trem|1|Também serve de transporte pelo parque"],
+  ["tikiroom", "🎭 Show de animatrônicos|1|"],
+  // EPCOT
+  ["advancedtraininglab", "🕹️ Área interativa|1|"],
+  ["gallery", "🖼️ Exposição|1|"],
+  ["awesomeplanet", "🎬 Cinema|1|"],
+  ["singalong", "🎭 Show (cante junto)|1|"],
+  ["sharkworld", "🐠 Área interativa infantil|1|"],
+  ["circlevision", "🎬 Cinema 360°|1|Em pé"],
+  ["shortfilmfestival", "🎬 Cinema 4D|1|"],
+  ["frozeneverafter", "🚤 Barco no escuro|1|Uma queda pequena (de costas)"],
+  ["granfiesta", "🚤 Barco no escuro|1|"],
+  ["guardiansofthegalaxy", "🎢 Montanha-russa giratória de lançamento|3|No escuro, carrinho gira 360°"],
+  ["whisperingwillows", "🖼️ Exposição|1|"],
+  ["imageworks", "🕹️ Área interativa|1|"],
+  ["impressionsdefrance", "🎬 Cinema|1|"],
+  ["palaisducinema", "🎬 Cinema|1|"],
+  ["journeyintoimagination", "🎨 Dark ride|1|"],
+  ["journeyofwater", "💧 Trilha interativa com água|1|Pode molhar um pouco"],
+  ["kidcot", "✏️ Atividade infantil|1|"],
+  ["livingwiththeland", "🚤 Passeio de barco pelas estufas|1|"],
+  ["missionspace", "🚀 Simulador de centrífuga|3|Versão laranja é intensa (enjoo); a verde é mais leve"],
+  ["projecttomorrow", "🖼️ Exposição interativa|1|"],
+  ["reflectionsofchina", "🎬 Cinema 360°|1|Em pé"],
+  ["remy", "🐭 Dark ride 3D sem trilho|1|"],
+  ["soarin", "🪂 Simulador de voo (asa-delta)|2|Fica suspenso no alto; movimento suave"],
+  ["seabase", "🐠 Aquário|1|"],
+  ["spaceshipearth", "🌐 Dark ride (dentro da esfera)|1|"],
+  ["testtrack", "🏎️ Carro de alta velocidade|2|Chega a ~100 km/h numa pista externa"],
+  ["americanadventure", "🎭 Teatro de animatrônicos|1|"],
+  ["seaswithnemo", "🐚 Dark ride + aquário|1|"],
+  ["turtletalk", "🐢 Show interativo|1|Em inglês"],
+  // Hollywood Studios
+  ["alienswirling", "🛸 Giratório|2|Gira bastante"],
+  ["runawayrailway", "🚂 Dark ride sem trilho|1|"],
+  ["smugglersrun", "🚀 Simulador interativo|2|Você pilota a Millennium Falcon"],
+  ["olafdraws", "✏️ Show de desenho|1|"],
+  ["onceuponastudio", "🎬 Cinema|1|"],
+  ["rocknroller", "🎢 Montanha-russa de lançamento|3|No escuro, com loopings e música alta"],
+  ["slinkydog", "🎢 Montanha-russa familiar|2|Dois lançamentos suaves"],
+  ["startours", "🚀 Simulador 3D|2|Pode dar enjoo"],
+  ["riseoftheresistance", "🚀 Dark ride sem trilho|2|Longa e muito imersiva, com uma queda no final"],
+  ["towerofterror", "🛗 Queda livre (elevador)|3|Várias quedas no escuro"],
+  ["toystorymania", "🎯 Dark ride interativo 3D|1|Jogos de tiro ao alvo"],
+  ["vacationfun", "🎬 Cinema|1|"],
+  ["waltdisneypresents", "🖼️ Exposição + filme|1|"],
+  // Animal Kingdom
+  ["bluey", "🛝 Área infantil|1|"],
+  ["conservationstation", "🐾 Área de animais|1|"],
+  ["flightofpassage", "🪂 Simulador de voo 3D|2|Você monta num banshee; sensação de altura"],
+  ["expeditioneverest", "🎢 Montanha-russa|3|Trecho de ré no escuro"],
+  ["discoveryislandtrail", "🐾 Trilha de animais|1|"],
+  ["gorillafalls", "🐾 Trilha de animais|1|"],
+  ["maharajah", "🐾 Trilha de animais|1|Tigres"],
+  ["oasisexhibits", "🐾 Trilha de animais|1|"],
+  ["kaliriver", "💦 Corredeiras|2|Molha muito"],
+  ["kilimanjaro", "🦒 Safári em caminhão|1|Melhor de manhã ou no fim da tarde"],
+  ["naviriver", "🚤 Barco no escuro|1|"],
+  ["treeoflife", "🌳 Ponto turístico|1|"],
+  ["wildernessexplorers", "✏️ Atividade infantil|1|"],
+  ["wildlifeexpress", "🚂 Trem|1|"],
+  ["zootopia", "🎬 Cinema 4D|1|"],
+  ["jumpingjunction", "🛝 Área infantil|1|"],
+  // Universal Studios Florida
+  ["minionmayhem", "🎢 Simulador 3D|2|Bancos que se mexem bastante"],
+  ["etadventure", "🚲 Dark ride suspenso|1|"],
+  ["gringotts", "🎢 Montanha-russa + dark ride 3D|2|Uma queda e trechos rápidos"],
+  ["hogwartsexpress", "🚂 Trem entre os parques|1|Exige ingresso Park-to-Park"],
+  ["minionblast", "🎯 Dark ride interativo (a pé)|1|Esteira rolante; você atira em alvos"],
+  ["kangkodos", "🛸 Giratório|1|"],
+  ["meninblack", "🎯 Dark ride interativo|1|Tiro ao alvo; o carrinho gira"],
+  ["racethroughnewyork", "🎢 Simulador 3D|2|"],
+  ["revengeofthemummy", "🎢 Montanha-russa de lançamento no escuro|3|Lançamento, trecho de ré e sustos"],
+  ["simpsonsride", "🎢 Simulador|2|Muito movimento; pode dar enjoo"],
+  ["transformers", "🤖 Dark ride 3D|2|"],
+  ["trollstrollercoaster", "🎢 Montanha-russa infantil|1|"],
+  ["poskungfu", "🛝 Área infantil|1|"],
+  ["poppysplayground", "🛝 Playground|1|"],
+  // Islands of Adventure
+  ["campjurassic", "🛝 Playground|1|"],
+  ["caroseussel", "🎠 Carrossel|1|"],
+  ["doctordoom", "🗼 Torre de queda (lança para cima)|3|"],
+  ["ripsawfalls", "💦 Tronco com queda|2|Molha muito"],
+  ["hippogriff", "🎢 Montanha-russa familiar|1|"],
+  ["hagrid", "🏍️ Montanha-russa de lançamento|3|Vários lançamentos, uma queda vertical no escuro"],
+  ["forbiddenjourney", "🧙 Dark ride robótico|2|Balança muito; pode dar enjoo"],
+  ["ifiranthezoo", "💦 Playground aquático|1|Molha"],
+  ["jurassicparkdiscovery", "🦖 Exposição|1|"],
+  ["jurassicparkriver", "💦 Barco com queda grande|2|Molha; queda de ~25 m"],
+  ["velocicoaster", "🎢 Montanha-russa de lançamento|3|Uma das mais radicais de Orlando, com inversões"],
+  ["meship", "🛝 Playground|1|"],
+  ["onefishtwofish", "🎠 Giratório infantil|1|Pode molhar"],
+  ["popeye", "💦 Corredeiras|2|Molha MUITO"],
+  ["pteranodon", "🎢 Montanha-russa suspensa infantil|1|Adulto só acompanhando criança"],
+  ["skullisland", "🦍 Dark ride 3D em caminhão|2|Sustos"],
+  ["stormforce", "☕ Xícaras giratórias|2|"],
+  ["spiderman", "🕷️ Dark ride 3D|2|"],
+  ["catinthehat", "🎩 Dark ride|1|Carrinho gira"],
+  ["seusstrolley", "🚋 Passeio panorâmico|1|"],
+  ["hulk", "🎢 Montanha-russa de lançamento|3|Inversões"],
+  // Epic Universe
+  ["astronomica", "💦 Fontes interativas|1|Molha"],
+  ["bowserjr", "🕹️ Área interativa|1|"],
+  ["constellationcarousel", "🎠 Carrossel|1|Gira mais rápido que o normal"],
+  ["curseofthewerewolf", "🎢 Montanha-russa giratória|2|"],
+  ["dragonracer", "🐉 Simulador giratório|3|Você controla os giros; muita inversão"],
+  ["fyredrill", "💦 Barcos com jatos d'água|1|Molha"],
+  ["battleattheministry", "🧙 Dark ride com elevador|2|"],
+  ["hiccup", "🎢 Montanha-russa familiar|2|"],
+  ["mariokart", "🏎️ Dark ride interativo (realidade aumentada)|1|"],
+  ["minecart", "🎢 Montanha-russa familiar|2|"],
+  ["monstersunchained", "🧟 Dark ride robótico|2|Escuro e sustos"],
+  ["stardustracers", "🎢 Montanha-russa dupla de lançamento|3|Dois trens competindo; tempo de ar"],
+  ["vikingtraining", "🛝 Playground|1|"],
+  ["yoshi", "🚋 Passeio panorâmico|1|Lento"],
+  // SeaWorld
+  ["abbysflower", "🎠 Giratório infantil|1|"],
+  ["cookiedrop", "🗼 Torre de queda infantil|1|"],
+  ["elmoschoo", "🚂 Trem infantil|1|"],
+  ["expeditionodyssey", "🐻‍❄️ Simulador|1|"],
+  ["flamingopaddle", "🦩 Pedalinho|1|"],
+  ["icebreaker", "🎢 Montanha-russa de lançamento|3|Vai e volta, com trecho vertical"],
+  ["infinityfalls", "💦 Corredeiras com queda|2|Molha muito"],
+  ["journeytoatlantis", "💦 Barco com quedas|2|Molha muito"],
+  ["kraken", "🎢 Montanha-russa sem chão|3|Inversões"],
+  ["mako", "🎢 Montanha-russa hyper|3|Alta, rápida, muito tempo de ar"],
+  ["manta", "🎢 Montanha-russa voadora|3|Você vai deitado, de bruços"],
+  ["penguintrek", "🎢 Montanha-russa familiar de lançamento|2|Termina na área dos pinguins"],
+  ["pipeline", "🎢 Montanha-russa de surfe (em pé)|3|"],
+  ["rositasharmony", "🎠 Giratório infantil|1|"],
+  ["waterworks", "💦 Playground aquático|1|Molha"],
+  ["seaquest", "🌊 Dark ride submarino|1|"],
+  ["skytower", "🗼 Torre panorâmica|1|"],
+  ["slimeys", "🎢 Montanha-russa infantil|1|"],
+  ["sunnydaycarousel", "🎠 Carrossel|1|"],
+  ["supergrover", "🎢 Montanha-russa infantil|1|"],
+  // Busch Gardens
+  ["airgrover", "🎢 Montanha-russa infantil|1|"],
+  ["bigbirdswhirly", "🎠 Giratório infantil|1|"],
+  ["cheetahhunt", "🎢 Montanha-russa de lançamento|3|"],
+  ["cobrascurse", "🎢 Montanha-russa giratória|2|"],
+  ["congoriver", "💦 Corredeiras|2|Molha muito"],
+  ["elmossafari", "🎠 Carrossel infantil|1|"],
+  ["falconsfury", "🗼 Queda livre de bruços|3|~100 m de altura"],
+  ["grandcaravan", "🎠 Carrossel|1|"],
+  ["gwazigliders", "🎠 Brinquedo infantil|1|"],
+  ["irongwazi", "🎢 Montanha-russa|3|Uma das mais radicais da Flórida"],
+  ["kumba", "🎢 Montanha-russa com inversões|3|"],
+  ["montu", "🎢 Montanha-russa invertida|3|Pés soltos, inversões"],
+  ["phoenixrising", "🎢 Montanha-russa suspensa familiar|2|"],
+  ["rositasdjembe", "🎠 Giratório infantil|1|"],
+  ["serengetiexpress", "🚂 Trem pela savana|1|Passa pelos animais"],
+  ["serengetiflyer", "🎡 Pêndulo gigante|3|Balanço até quase 75°"],
+  ["sheikra", "🎢 Montanha-russa de mergulho|3|Para no topo e cai a 90°"],
+  ["skyride", "🚡 Teleférico|1|"],
+  ["snuffys", "🎠 Giratório infantil|1|"],
+  ["countszambezi", "🎠 Brinquedo infantil|1|"],
+  ["tigris", "🎢 Montanha-russa de lançamento|3|Vai e volta, inversões"],
+  ["treetopdrop", "🗼 Torre de queda infantil|1|"],
+  ["ubangabanga", "🚗 Carrinho de bate-bate|1|"],
+  ["zoepatra", "🎠 Brinquedo infantil|1|"],
+].map(([k, v]) => { const [type, lvl, note] = v.split("|"); return { k, type, lvl: +lvl, note }; });
+
+const norm = s => s.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase().replace(/[^a-z0-9]/g, "");
+function infoFor(a) {
+  const n = norm(a.name);
+  const hit = a.type !== "SHOW" && CATALOG.find(c => n.includes(c.k));
+  if (hit) return hit;
+  // palpite pelo nome para o que não está no catálogo
+  const guess = [[/coaster/, "🎢 Montanha-russa"], [/carr?ou?sel/, "🎠 Carrossel"], [/train|railroad|express/, "🚂 Trem"],
+    [/trail|trek|exhibit/, "🐾 Trilha / exposição"], [/play|camp/, "🛝 Área infantil"], [/theat|film|cinema|movie/, "🎬 Cinema"],
+    [/meet|greet|character/, "🤝 Encontro com personagem"]].find(([re]) => re.test(n));
+  if (guess) return { type: guess[1], lvl: 0, note: "" };
+  if (a.type === "SHOW") return { type: a.isShow ? "🎭 Show" : "🤝 Experiência", lvl: 0, note: "" };
+  return null;
+}
+const LVL = { 1: ["Leve", "w-good"], 2: ["Moderada", "w-mid"], 3: ["Radical", "w-bad"] };
+function infoLine(a, long) {
+  const i = infoFor(a);
+  if (!i) return "";
+  const lvl = LVL[i.lvl] ? ` · <span class="${LVL[i.lvl][1]}">${LVL[i.lvl][0]}</span>` : "";
+  return `${i.type}${lvl}${long && i.note ? ` · ${esc(i.note)}` : ""}`;
+}
 
 const $ = s => document.querySelector(s);
 let parkId = null, attractions = [], prevWaits = {}, gps = null, tab = "todo", lastUpdate = null;
@@ -178,8 +404,9 @@ async function selectPark(id) {
     const kids = await getJSON(`${API}/entity/${id}/children`);
     const locs = {};
     kids.children.forEach(c => { if (c.location?.latitude) locs[c.id] = { lat: c.location.latitude, lng: c.location.longitude }; });
-    attractions = kids.children.filter(c => c.entityType === "ATTRACTION")
-      .map(c => ({ id: c.id, name: c.name, loc: locs[c.id] || null, status: "?", wait: null, forecast: [], ll: false }));
+    attractions = kids.children.filter(c => c.entityType === "ATTRACTION" || c.entityType === "SHOW")
+      .map(c => ({ id: c.id, name: c.name, type: c.entityType, loc: locs[c.id] || null, status: "?", wait: null, est: false,
+                   forecast: [], ll: false, showtimes: [], isShow: false }));
     await refreshLive();
   } catch (e) {
     $("#next").innerHTML = `<span class="err">Não consegui carregar o parque (${e.message}).</span>`;
@@ -207,9 +434,18 @@ async function refreshLive() {
   attractions.forEach(a => {
     const l = byId[a.id];
     if (a.wait != null) prevWaits[a.id] = a.wait;
-    if (!l) { a.status = "?"; a.wait = null; return; }
+    // Sem dados ao vivo (comum no SeaWorld/Busch, e em atrações sazonais): fica em "Fechadas";
+    // se você marcar ★, entra no roteiro com fila estimada de 10 min
+    if (!l) { a.status = "?"; a.est = a.type === "ATTRACTION"; a.wait = a.est ? 10 : null; a.isShow = false; return; }
     a.status = l.status;
-    a.wait = l.queue?.STANDBY?.waitTime ?? null;
+    const real = l.queue?.STANDBY?.waitTime ?? null;
+    // brinquedo aberto sem tempo informado (walk-in, cinema, trem…): estimamos 5 min
+    a.est = real == null && a.type === "ATTRACTION" && l.status === "OPERATING";
+    a.wait = a.est ? 5 : real;
+    // shows com horário de apresentação (encontros com personagem vêm como janela "Operating")
+    a.showtimes = (l.showtimes || []).filter(s => !/operating/i.test(s.type || "") && s.startTime)
+      .map(s => new Date(s.startTime)).sort((x, y) => x - y);
+    a.isShow = a.type === "SHOW" && real == null && a.showtimes.length > 0;
     a.forecast = (l.forecast || []).map(f => ({ t: new Date(f.time), w: f.waitTime }));
     a.ll = !!(l.queue?.RETURN_TIME || l.queue?.PAID_RETURN_TIME);
   });
@@ -235,23 +471,46 @@ function score(a, pos) {
   const avg = laterAvg(a);
   const savings = avg == null ? 0 : avg - a.wait;
   const opp = 1 + Math.max(-30, Math.min(60, savings)) / 40;
-  const prio = must[a.id] ? 3 : 1;
-  return { walk, cost, avg, savings, value: prio * opp / cost };
+  // fila estimada (walk-in, cinema) vale menos, para não passar na frente dos brinquedos principais
+  const prio = (must[a.id] ? 3 : 1) * (a.est ? 0.5 : 1);
+  // popularidade: atração que costuma ter fila grande é "principal" e vale mais que uma de 5 min
+  const typical = a.forecast.length ? a.forecast.reduce((s, f) => s + (f.w || 0), 0) / a.forecast.length : (a.est ? 0 : a.wait);
+  const pop = 1 + Math.min(90, typical) / 15;
+  return { walk, cost, avg, savings, value: prio * pop * opp / cost };
+}
+
+const nextShowTime = a => a.showtimes.find(t => t.getTime() > Date.now()) || null;
+
+// Próximo show marcado com ★ que ainda dá tempo de alcançar
+function upcomingShow(pos) {
+  const now = Date.now();
+  return attractions
+    .filter(a => a.isShow && must[a.id] && !state.done[a.id] && !state.skip[a.id] && a.status === "OPERATING")
+    .map(a => { const t = nextShowTime(a); return t && { a, t, walk: a.loc && pos ? walkMin(distM(pos, a.loc)) : 10 }; })
+    .filter(x => x && (x.t - now) / 60000 >= x.walk)
+    .sort((x, y) => x.t - y.t)[0] || null;
 }
 
 function candidates() {
   const { pos } = currentPos();
-  return attractions
-    .filter(a => a.status === "OPERATING" && a.wait != null && !state.done[a.id] && !state.skip[a.id])
+  let list = attractions
+    .filter(a => !a.isShow && !state.done[a.id] && !state.skip[a.id] && a.wait != null &&
+      (a.status === "OPERATING" || (a.status === "?" && must[a.id])))
     .map(a => ({ a, s: score(a, pos) }))
-    .filter(c => c.s.walk < minsLeft())   // dá para entrar na fila antes de fechar
-    .sort((x, y) => y.s.value - x.s.value);
+    .filter(c => c.s.walk < minsLeft());   // dá para entrar na fila antes de fechar
+  // Se há um show ★ chegando, só sugere o que dá para fazer e ainda chegar ao show com 10 min de folga
+  const sh = upcomingShow(pos);
+  if (sh) {
+    const minsTo = (sh.t - Date.now()) / 60000;
+    list = list.filter(c => c.s.cost + (c.a.loc && sh.a.loc ? walkMin(distM(c.a.loc, sh.a.loc)) : 10) + 10 <= minsTo);
+  }
+  return list.sort((x, y) => y.s.value - x.s.value);
 }
 
 // ---------- UI ----------
 const waitCls = w => w == null ? "" : w <= 20 ? "w-good" : w <= 45 ? "w-mid" : "w-bad";
 const esc = s => s.replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
-const statusPt = { OPERATING: "Aberta", DOWN: "Parada temporariamente", CLOSED: "Fechada", REFURBISHMENT: "Em reforma", "?": "Sem dados" };
+const statusPt = { OPERATING: "Aberta", DOWN: "Parada temporariamente", CLOSED: "Fechada", REFURBISHMENT: "Em reforma", "?": "Sem dados ao vivo — marque ★ para incluir no roteiro" };
 
 function trend(a) {
   const p = prevWaits[a.id];
@@ -265,7 +524,8 @@ function why(a, s) {
   if (s.avg != null && s.savings >= 10) parts.push(`a fila deve subir para ~${Math.round(s.avg)} min mais tarde`);
   else if (s.avg != null && s.savings <= -10) parts.push(`a fila deve cair para ~${Math.round(s.avg)} min mais tarde, mas ainda compensa pelo trajeto`);
   if (s.walk <= 5) parts.push("fica pertinho de você");
-  if (a.wait <= 15) parts.push("fila curta agora");
+  if (a.status === "?") parts.push("está nas suas ★, mas não há dados ao vivo (confira no local se está aberta)");
+  else if (a.wait <= 15 && !a.est) parts.push("fila curta agora");
   return parts.length ? "Porque " + parts.join(", ") + "." : "Melhor relação entre fila e caminhada agora.";
 }
 
@@ -280,6 +540,7 @@ function render() {
   $("#pause").textContent = state.pausedAt ? "▶ Retomar" : "⏸ Pausa";
 
   const cands = candidates();
+  const sh = upcomingShow(cur.pos);
   const next = $("#next");
   const doneCount = Object.keys(state.done).length;
   const queued = state.log.reduce((s, l) => s + (l.wait || 0), 0);
@@ -290,6 +551,24 @@ function render() {
       <button class="btn primary" id="resume">▶ Retomar roteiro</button>${summary}`;
   } else if (hours && Date.now() < hours.open) {
     next.innerHTML = `<span class="muted">O parque abre às ${fmtT(hours.open)}. Marque suas ★ prioridades enquanto isso — na abertura as filas costumam ser as menores do dia.</span>`;
+  } else if (sh && (((sh.t - Date.now()) / 60000 - sh.walk) <= 20 || !cands.length)) {
+    const leaveBy = new Date(sh.t.getTime() - (sh.walk + 10) * 60000);
+    const dest = sh.a.loc ? `https://www.google.com/maps/dir/?api=1&destination=${sh.a.loc.lat},${sh.a.loc.lng}&travelmode=walking` : null;
+    next.innerHTML = `
+      <div class="label">Hora do show</div>
+      <h2>★ ${esc(sh.a.name)}</h2>
+      <div class="kind">🎭 Show</div>
+      <div class="stats">
+        <div><b>${fmtT(sh.t)}</b>começa</div>
+        <div><b>${sh.walk} min</b>a pé</div>
+        <div><b>${fmtT(leaveBy)}</b>saia até</div>
+      </div>
+      <p class="why">Você marcou este show como prioridade. Chegar uns 10 min antes garante lugar melhor.</p>
+      <div class="actions">
+        <button class="btn primary" data-act="done" data-id="${sh.a.id}">✓ Assisti</button>
+        <button class="btn" data-act="skip" data-id="${sh.a.id}">Pular</button>
+        ${dest ? `<a class="btn" href="${dest}" target="_blank" rel="noopener">🧭 Rota a pé</a>` : ""}
+      </div>${summary}`;
   } else if (!cands.length) {
     next.innerHTML = `<span class="muted">Nenhuma atração aberta com fila disponível agora${attractions.length ? "" : " (o parque pode estar fechado)"}.</span>`;
   } else {
@@ -298,8 +577,9 @@ function render() {
     next.innerHTML = `
       <div class="label">Próxima atração</div>
       <h2>${must[a.id] ? "★ " : ""}${esc(a.name)}</h2>
+      ${infoFor(a) ? `<div class="kind">${infoLine(a, true)}</div>` : ""}
       <div class="stats">
-        <div><b class="${waitCls(a.wait)}">${a.wait} min</b>fila${trend(a)}</div>
+        <div><b class="${waitCls(a.wait)}">${a.est ? "~" : ""}${a.wait} min</b>fila${a.est ? " (estimada)" : trend(a)}</div>
         <div><b>${s.walk} min</b>a pé</div>
         <div><b>~${s.cost} min</b>total</div>
       </div>
@@ -309,6 +589,7 @@ function render() {
         <button class="btn" data-act="skip" data-id="${a.id}">Pular</button>
         ${dest ? `<a class="btn" href="${dest}" target="_blank" rel="noopener">🧭 Rota a pé</a>` : ""}
       </div>
+      ${sh ? `<p class="why">🎭 Guardei tempo para <b>${esc(sh.a.name)}</b> às ${fmtT(sh.t)}.</p>` : ""}
       ${left < 60 ? `<p class="why" style="color:var(--mid)">⏰ Última hora: entre na fila antes das ${fmtT(hours.close)} — depois de entrar você pode ir mesmo após o fechamento.</p>` : ""}
       ${cands.length > 1 ? `<p class="muted" style="margin:12px 0 0">Depois: ${cands.slice(1, 4).map(c => `${esc(c.a.name)} (${c.a.wait} min)`).join(" · ")}</p>` : ""}${summary}`;
   }
@@ -318,8 +599,11 @@ function render() {
   let items;
   if (tab === "todo") items = cands.map(c => c.a);
   else if (tab === "must") items = attractions.filter(a => must[a.id]).sort((x, y) => (rank[x.id]?.i ?? 999) - (rank[y.id]?.i ?? 999));
+  else if (tab === "shows") items = attractions.filter(a => a.isShow)
+    .sort((x, y) => ((nextShowTime(x) ?? Infinity) - (nextShowTime(y) ?? Infinity)) || x.name.localeCompare(y.name));
   else if (tab === "done") items = attractions.filter(a => state.done[a.id] || state.skip[a.id]);
-  else items = attractions.filter(a => a.status !== "OPERATING" || a.wait == null).sort((x, y) => x.name.localeCompare(y.name));
+  else items = attractions.filter(a => !a.isShow && !rank[a.id] && (a.status !== "OPERATING" || a.wait == null))
+    .sort((x, y) => (x.status === "?") - (y.status === "?") || x.name.localeCompare(y.name));
 
   $("#list").innerHTML = items.length ? items.map(a => {
     const r = rank[a.id];
@@ -328,12 +612,23 @@ function render() {
     if (a.status !== "OPERATING") meta.push(statusPt[a.status] || a.status);
     if (walk != null) meta.push(`${walk} min a pé`);
     if (r && r.s.avg != null) meta.push(`depois ~${Math.round(r.s.avg)} min`);
+    if (a.type === "SHOW" && !a.isShow) meta.push(/meet|encontro/i.test(a.name) ? "personagem" : "experiência");
+    if (a.est && a.status === "OPERATING") meta.push("sem fila informada");
+    if (a.status === "?" && must[a.id]) meta.push("incluída no roteiro (fila estimada)");
+    if (a.isShow) {
+      const fut = a.showtimes.filter(t => t.getTime() > Date.now());
+      meta.push(fut.length > 1 ? `depois: ${fut.slice(1, 4).map(fmtT).join(", ")}` : fut.length ? "última sessão" : "sem mais sessões hoje");
+    }
     if (state.skip[a.id]) meta.push("pulada");
     if (state.done[a.id]) meta.push(`feita às ${fmtT(new Date(state.done[a.id]))}`);
     if (a.ll) meta.push("LL/Express");
+    const nt = a.isShow ? nextShowTime(a) : null;
+    const cell = a.isShow
+      ? `<div class="wait time">${nt ? fmtT(nt) : "–"}<small>${nt ? "próx." : ""}</small></div>`
+      : `<div class="wait ${waitCls(a.wait)}">${a.wait == null || (a.status === "?" && !must[a.id]) ? "–" : (a.est ? "~" : "") + a.wait}<small>${a.wait != null ? "min" : ""}</small></div>`;
     return `<div class="row ${state.done[a.id] ? "done" : ""}">
-      <div class="wait ${waitCls(a.wait)}">${a.wait ?? "–"}<small>${a.wait != null ? "min" : ""}</small></div>
-      <div><div class="name">${esc(a.name)}</div><div class="meta">${meta.join(" · ")}${trend(a)}</div></div>
+      ${cell}
+      <div><div class="name">${esc(a.name)}</div>${infoFor(a) ? `<div class="kindline">${infoLine(a, false)}</div>` : ""}<div class="meta">${meta.join(" · ")}${trend(a)}</div></div>
       <div class="icons">
         <button title="Prioridade" class="${must[a.id] ? "on" : ""}" data-act="must" data-id="${a.id}">★</button>
         <button title="Feita" class="${state.done[a.id] ? "on-done" : ""}" data-act="done" data-id="${a.id}">✓</button>
