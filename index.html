@@ -1,0 +1,387 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Roteiro nos Parques</title>
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Roteiro">
+<meta name="theme-color" content="#2563eb">
+<style>
+  :root {
+    --bg: #f5f6f8; --card: #ffffff; --text: #1b1d22; --muted: #6b7280; --line: #e5e7eb;
+    --accent: #2563eb; --good: #15803d; --mid: #b45309; --bad: #b91c1c; --star: #d97706;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root { --bg: #0f1115; --card: #1a1d24; --text: #e8eaee; --muted: #9aa1ad; --line: #2a2f39;
+      --accent: #60a5fa; --good: #4ade80; --mid: #fbbf24; --bad: #f87171; --star: #fbbf24; }
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    background: var(--bg); color: var(--text); }
+  main { max-width: 640px; margin: 0 auto; padding: 12px 16px 48px; }
+  h1 { font-size: 20px; margin: 4px 0 12px; }
+  select, button { font: inherit; color: inherit; }
+  select { width: 100%; padding: 10px; border-radius: 10px; border: 1px solid var(--line); background: var(--card); }
+  .bar { display: flex; gap: 8px; align-items: center; margin: 10px 0; flex-wrap: wrap; font-size: 13px; color: var(--muted); }
+  .bar button { padding: 6px 10px; border-radius: 8px; border: 1px solid var(--line); background: var(--card); cursor: pointer; }
+  .card { background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 16px; margin: 12px 0; }
+  .next .label { font-size: 12px; text-transform: uppercase; letter-spacing: .06em; color: var(--accent); font-weight: 600; }
+  .next h2 { margin: 6px 0 4px; font-size: 22px; }
+  .next .why { color: var(--muted); font-size: 14px; margin: 6px 0 12px; }
+  .stats { display: flex; gap: 16px; margin: 8px 0; }
+  .stats div { font-size: 13px; color: var(--muted); }
+  .stats b { display: block; font-size: 22px; color: var(--text); }
+  .actions { display: flex; gap: 8px; flex-wrap: wrap; }
+  .btn { padding: 10px 14px; border-radius: 10px; border: 1px solid var(--line); background: var(--card); cursor: pointer; text-decoration: none; color: var(--text); font-size: 14px; }
+  .btn.primary { background: var(--accent); color: #fff; border-color: var(--accent); }
+  .tabs { display: flex; gap: 6px; margin: 16px 0 8px; }
+  .tabs button { flex: 1; padding: 8px; border-radius: 8px; border: 1px solid var(--line); background: var(--card); cursor: pointer; font-size: 13px; }
+  .tabs button.on { background: var(--text); color: var(--bg); }
+  .row { display: grid; grid-template-columns: 52px 1fr auto; gap: 10px; align-items: center; padding: 10px 0; border-bottom: 1px solid var(--line); }
+  .row:last-child { border-bottom: 0; }
+  .wait { text-align: center; font-weight: 700; font-size: 18px; line-height: 1; }
+  .wait small { display: block; font-size: 10px; font-weight: 500; color: var(--muted); margin-top: 3px; }
+  .w-good { color: var(--good); } .w-mid { color: var(--mid); } .w-bad { color: var(--bad); }
+  .name { font-size: 15px; }
+  .meta { font-size: 12px; color: var(--muted); margin-top: 2px; }
+  .done .name { text-decoration: line-through; color: var(--muted); }
+  .icons { display: flex; gap: 2px; }
+  .icons button { width: 34px; height: 34px; border: 0; background: transparent; cursor: pointer; border-radius: 8px; font-size: 16px; color: var(--muted); }
+  .icons button:hover { background: var(--line); }
+  .icons button.on { color: var(--star); }
+  .icons button.on-done { color: var(--good); }
+  .muted { color: var(--muted); font-size: 13px; }
+  .err { color: var(--bad); }
+  footer { margin-top: 24px; font-size: 12px; color: var(--muted); text-align: center; }
+  footer a { color: inherit; }
+</style>
+</head>
+<body>
+<main>
+  <h1>🎢 Roteiro nos Parques</h1>
+  <select id="park"><option>Carregando parques…</option></select>
+  <div class="bar">
+    <button id="refresh">↻ Atualizar filas</button>
+    <button id="pause">⏸ Pausa</button>
+    <span id="hours"></span>
+    <span id="updated"></span>
+    <span id="loc"></span>
+  </div>
+
+  <div id="next" class="card next"><span class="muted">Escolha um parque.</span></div>
+
+  <div class="tabs">
+    <button data-tab="todo" class="on">A fazer</button>
+    <button data-tab="must">★ Prioridades</button>
+    <button data-tab="done">Feitas</button>
+    <button data-tab="closed">Fechadas</button>
+  </div>
+  <div class="card" id="list" style="padding:4px 16px"></div>
+
+  <p class="muted">★ marca prioridade (peso 3×) · ✓ marca como feita (e define sua posição ali) · ✕ pula hoje · 📍 “estou aqui” quando o GPS não ajuda.</p>
+  <footer>Dados de fila: <a href="https://themeparks.wiki" target="_blank" rel="noopener">ThemeParks.wiki</a>. Atualiza sozinho a cada 5 min.</footer>
+</main>
+
+<script>
+const API = "https://api.themeparks.wiki/v1";
+const WALK_M_PER_MIN = 75;     // ~4,5 km/h
+const PATH_FACTOR = 1.35;      // caminhos de parque não são linha reta
+const RIDE_MIN = 6;            // duração média do brinquedo + embarque
+const REFRESH_MS = 5 * 60 * 1000;
+
+const $ = s => document.querySelector(s);
+let parkId = null, attractions = [], prevWaits = {}, gps = null, tab = "todo", lastUpdate = null;
+let parkTz = "America/New_York", hours = null;  // hours = { open: Date, close: Date }
+const ORLANDO = /walt disney world|universal orlando|seaworld parks and resorts orlando|busch gardens tampa/i;
+const fmtT = d => d.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit", timeZone: parkTz });
+const minsLeft = () => hours ? (hours.close - Date.now()) / 60000 : Infinity;
+
+// ---------- persistência (por parque e por dia) ----------
+const today = () => new Date().toISOString().slice(0, 10);
+function store(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch {} }
+function load(k, d) { try { const v = JSON.parse(localStorage.getItem(k)); return v ?? d; } catch { return d; } }
+const stateKey = () => `roteiro:${parkId}:${today()}`;
+let state = { done: {}, skip: {}, here: null, log: [], pausedAt: null };
+const prefsKey = () => `roteiro:must:${parkId}`;  // prioridades valem para qualquer dia
+let must = {};
+function save() { store(stateKey(), state); store(prefsKey(), must); }
+
+// ---------- geo ----------
+function distM(a, b) {
+  const R = 6371000, r = x => x * Math.PI / 180;
+  const dLat = r(b.lat - a.lat), dLon = r(b.lng - a.lng);
+  const h = Math.sin(dLat / 2) ** 2 + Math.cos(r(a.lat)) * Math.cos(r(b.lat)) * Math.sin(dLon / 2) ** 2;
+  return 2 * R * Math.asin(Math.sqrt(h));
+}
+const walkMin = m => Math.round(m * PATH_FACTOR / WALK_M_PER_MIN);
+
+function parkCenter() {
+  const pts = attractions.filter(a => a.loc);
+  if (!pts.length) return null;
+  return { lat: pts.reduce((s, a) => s + a.loc.lat, 0) / pts.length, lng: pts.reduce((s, a) => s + a.loc.lng, 0) / pts.length };
+}
+
+// Onde estou: GPS (se estiver dentro do parque) > "estou aqui" manual / última feita > centro do parque
+function currentPos() {
+  const c = parkCenter();
+  if (gps && c && distM(gps, c) < 2500) return { pos: gps, src: "GPS" };
+  if (state.here) return { pos: state.here.loc, src: state.here.name };
+  return { pos: c, src: "centro do parque" };
+}
+
+if ("geolocation" in navigator) {
+  navigator.geolocation.watchPosition(
+    p => { gps = { lat: p.coords.latitude, lng: p.coords.longitude }; render(); },
+    () => { gps = null; render(); },
+    { enableHighAccuracy: true, maximumAge: 30000 }
+  );
+}
+
+// ---------- dados ----------
+async function getJSON(url) {
+  const r = await fetch(url);
+  if (!r.ok) throw new Error(`HTTP ${r.status}`);
+  return r.json();
+}
+
+async function loadParks() {
+  const d = await getJSON(`${API}/destinations`);
+  const sel = $("#park");
+  sel.innerHTML = `<option value="">Escolha o parque…</option>`;
+  d.destinations
+    .filter(x => /disney|universal|seaworld|busch gardens/i.test(x.name))
+    .sort((a, b) => (ORLANDO.test(b.name) - ORLANDO.test(a.name)) || a.name.localeCompare(b.name))
+    .forEach(dest => {
+      const g = document.createElement("optgroup");
+      g.label = (ORLANDO.test(dest.name) ? "🇺🇸 " : "") + dest.name;
+      dest.parks.forEach(p => g.append(new Option(p.name, p.id)));
+      sel.append(g);
+    });
+  const last = load("roteiro:lastPark", "");
+  if (last && sel.querySelector(`option[value="${last}"]`)) { sel.value = last; selectPark(last); }
+}
+
+async function selectPark(id) {
+  parkId = id;
+  store("roteiro:lastPark", id);
+  state = Object.assign({ done: {}, skip: {}, here: null, log: [], pausedAt: null }, load(stateKey(), {}));
+  must = load(prefsKey(), {});
+  prevWaits = {};
+  attractions = [];
+  hours = null;
+  loadHours(id).then(render).catch(() => {});
+  $("#next").innerHTML = `<span class="muted">Carregando atrações…</span>`;
+  $("#list").innerHTML = "";
+  try {
+    const kids = await getJSON(`${API}/entity/${id}/children`);
+    const locs = {};
+    kids.children.forEach(c => { if (c.location?.latitude) locs[c.id] = { lat: c.location.latitude, lng: c.location.longitude }; });
+    attractions = kids.children.filter(c => c.entityType === "ATTRACTION")
+      .map(c => ({ id: c.id, name: c.name, loc: locs[c.id] || null, status: "?", wait: null, forecast: [], ll: false }));
+    await refreshLive();
+  } catch (e) {
+    $("#next").innerHTML = `<span class="err">Não consegui carregar o parque (${e.message}).</span>`;
+  }
+}
+
+// Horário de hoje: o período OPERATING que ainda não terminou (ignora early entry / eventos pagos)
+async function loadHours(id) {
+  const [ent, sch] = await Promise.all([getJSON(`${API}/entity/${id}`), getJSON(`${API}/entity/${id}/schedule`)]);
+  if (id !== parkId) return;
+  parkTz = ent.timezone || parkTz;
+  const now = Date.now();
+  const ops = (sch.schedule || [])
+    .filter(s => s.type === "OPERATING")
+    .map(s => ({ open: new Date(s.openingTime), close: new Date(s.closingTime) }))
+    .filter(s => s.close > now && s.open - now < 20 * 3600000)
+    .sort((a, b) => a.open - b.open);
+  hours = ops[0] || null;
+}
+
+async function refreshLive() {
+  if (!parkId) return;
+  const live = await getJSON(`${API}/entity/${parkId}/live`);
+  const byId = Object.fromEntries(live.liveData.map(x => [x.id, x]));
+  attractions.forEach(a => {
+    const l = byId[a.id];
+    if (a.wait != null) prevWaits[a.id] = a.wait;
+    if (!l) { a.status = "?"; a.wait = null; return; }
+    a.status = l.status;
+    a.wait = l.queue?.STANDBY?.waitTime ?? null;
+    a.forecast = (l.forecast || []).map(f => ({ t: new Date(f.time), w: f.waitTime }));
+    a.ll = !!(l.queue?.RETURN_TIME || l.queue?.PAID_RETURN_TIME);
+  });
+  lastUpdate = new Date();
+  render();
+}
+
+// ---------- algoritmo de recomendação ----------
+// Pontuação = valor / custo de tempo.
+//   custo = caminhada + fila + duração
+//   valor = prioridade × bônus de "oportunidade" (fila agora menor do que a prevista para o resto do dia)
+function laterAvg(a) {
+  const now = Date.now();
+  const end = hours ? hours.close.getTime() : Infinity;
+  const later = a.forecast.filter(f => f.t.getTime() > now + 30 * 60000 && f.t.getTime() < end && f.w != null);
+  if (!later.length) return null;
+  return later.reduce((s, f) => s + f.w, 0) / later.length;
+}
+
+function score(a, pos) {
+  const walk = a.loc && pos ? walkMin(distM(pos, a.loc)) : 10;
+  const cost = walk + a.wait + RIDE_MIN;
+  const avg = laterAvg(a);
+  const savings = avg == null ? 0 : avg - a.wait;
+  const opp = 1 + Math.max(-30, Math.min(60, savings)) / 40;
+  const prio = must[a.id] ? 3 : 1;
+  return { walk, cost, avg, savings, value: prio * opp / cost };
+}
+
+function candidates() {
+  const { pos } = currentPos();
+  return attractions
+    .filter(a => a.status === "OPERATING" && a.wait != null && !state.done[a.id] && !state.skip[a.id])
+    .map(a => ({ a, s: score(a, pos) }))
+    .filter(c => c.s.walk < minsLeft())   // dá para entrar na fila antes de fechar
+    .sort((x, y) => y.s.value - x.s.value);
+}
+
+// ---------- UI ----------
+const waitCls = w => w == null ? "" : w <= 20 ? "w-good" : w <= 45 ? "w-mid" : "w-bad";
+const esc = s => s.replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+const statusPt = { OPERATING: "Aberta", DOWN: "Parada temporariamente", CLOSED: "Fechada", REFURBISHMENT: "Em reforma", "?": "Sem dados" };
+
+function trend(a) {
+  const p = prevWaits[a.id];
+  if (p == null || a.wait == null || p === a.wait) return "";
+  return a.wait > p ? ` ↑ (era ${p})` : ` ↓ (era ${p})`;
+}
+
+function why(a, s) {
+  const parts = [];
+  if (must[a.id]) parts.push("está nas suas prioridades");
+  if (s.avg != null && s.savings >= 10) parts.push(`a fila deve subir para ~${Math.round(s.avg)} min mais tarde`);
+  else if (s.avg != null && s.savings <= -10) parts.push(`a fila deve cair para ~${Math.round(s.avg)} min mais tarde, mas ainda compensa pelo trajeto`);
+  if (s.walk <= 5) parts.push("fica pertinho de você");
+  if (a.wait <= 15) parts.push("fila curta agora");
+  return parts.length ? "Porque " + parts.join(", ") + "." : "Melhor relação entre fila e caminhada agora.";
+}
+
+function render() {
+  if (!parkId) return;
+  const cur = currentPos();
+  $("#loc").textContent = cur.pos ? `📍 posição: ${cur.src}` : "";
+  $("#updated").textContent = lastUpdate ? `atualizado ${fmtT(lastUpdate)}` : "";
+  const left = minsLeft();
+  $("#hours").textContent = !hours ? "" : Date.now() < hours.open ? `🕘 abre ${fmtT(hours.open)}`
+    : `🕘 fecha ${fmtT(hours.close)} (faltam ${Math.floor(left / 60)}h${String(Math.round(left % 60)).padStart(2, "0")})`;
+  $("#pause").textContent = state.pausedAt ? "▶ Retomar" : "⏸ Pausa";
+
+  const cands = candidates();
+  const next = $("#next");
+  const doneCount = Object.keys(state.done).length;
+  const queued = state.log.reduce((s, l) => s + (l.wait || 0), 0);
+  const summary = doneCount ? `<p class="muted" style="margin:12px 0 0">Hoje: <b>${doneCount}</b> atrações · ~${queued} min em filas</p>` : "";
+  if (state.pausedAt) {
+    next.innerHTML = `<div class="label">Em pausa desde ${fmtT(new Date(state.pausedAt))}</div>
+      <p class="why">Aproveite o almoço/descanso. Quando voltar, toque em Retomar — vou recalcular a partir de onde você estiver.</p>
+      <button class="btn primary" id="resume">▶ Retomar roteiro</button>${summary}`;
+  } else if (hours && Date.now() < hours.open) {
+    next.innerHTML = `<span class="muted">O parque abre às ${fmtT(hours.open)}. Marque suas ★ prioridades enquanto isso — na abertura as filas costumam ser as menores do dia.</span>`;
+  } else if (!cands.length) {
+    next.innerHTML = `<span class="muted">Nenhuma atração aberta com fila disponível agora${attractions.length ? "" : " (o parque pode estar fechado)"}.</span>`;
+  } else {
+    const { a, s } = cands[0];
+    const dest = a.loc ? `https://www.google.com/maps/dir/?api=1&destination=${a.loc.lat},${a.loc.lng}&travelmode=walking` : null;
+    next.innerHTML = `
+      <div class="label">Próxima atração</div>
+      <h2>${must[a.id] ? "★ " : ""}${esc(a.name)}</h2>
+      <div class="stats">
+        <div><b class="${waitCls(a.wait)}">${a.wait} min</b>fila${trend(a)}</div>
+        <div><b>${s.walk} min</b>a pé</div>
+        <div><b>~${s.cost} min</b>total</div>
+      </div>
+      <p class="why">${why(a, s)}${a.ll ? " Tem Lightning Lane / Express." : ""}</p>
+      <div class="actions">
+        <button class="btn primary" data-act="done" data-id="${a.id}">✓ Fui!</button>
+        <button class="btn" data-act="skip" data-id="${a.id}">Pular</button>
+        ${dest ? `<a class="btn" href="${dest}" target="_blank" rel="noopener">🧭 Rota a pé</a>` : ""}
+      </div>
+      ${left < 60 ? `<p class="why" style="color:var(--mid)">⏰ Última hora: entre na fila antes das ${fmtT(hours.close)} — depois de entrar você pode ir mesmo após o fechamento.</p>` : ""}
+      ${cands.length > 1 ? `<p class="muted" style="margin:12px 0 0">Depois: ${cands.slice(1, 4).map(c => `${esc(c.a.name)} (${c.a.wait} min)`).join(" · ")}</p>` : ""}${summary}`;
+  }
+
+  // lista
+  const rank = Object.fromEntries(cands.map((c, i) => [c.a.id, { i, s: c.s }]));
+  let items;
+  if (tab === "todo") items = cands.map(c => c.a);
+  else if (tab === "must") items = attractions.filter(a => must[a.id]).sort((x, y) => (rank[x.id]?.i ?? 999) - (rank[y.id]?.i ?? 999));
+  else if (tab === "done") items = attractions.filter(a => state.done[a.id] || state.skip[a.id]);
+  else items = attractions.filter(a => a.status !== "OPERATING" || a.wait == null).sort((x, y) => x.name.localeCompare(y.name));
+
+  $("#list").innerHTML = items.length ? items.map(a => {
+    const r = rank[a.id];
+    const walk = r ? r.s.walk : (a.loc && cur.pos ? walkMin(distM(cur.pos, a.loc)) : null);
+    const meta = [];
+    if (a.status !== "OPERATING") meta.push(statusPt[a.status] || a.status);
+    if (walk != null) meta.push(`${walk} min a pé`);
+    if (r && r.s.avg != null) meta.push(`depois ~${Math.round(r.s.avg)} min`);
+    if (state.skip[a.id]) meta.push("pulada");
+    if (state.done[a.id]) meta.push(`feita às ${fmtT(new Date(state.done[a.id]))}`);
+    if (a.ll) meta.push("LL/Express");
+    return `<div class="row ${state.done[a.id] ? "done" : ""}">
+      <div class="wait ${waitCls(a.wait)}">${a.wait ?? "–"}<small>${a.wait != null ? "min" : ""}</small></div>
+      <div><div class="name">${esc(a.name)}</div><div class="meta">${meta.join(" · ")}${trend(a)}</div></div>
+      <div class="icons">
+        <button title="Prioridade" class="${must[a.id] ? "on" : ""}" data-act="must" data-id="${a.id}">★</button>
+        <button title="Feita" class="${state.done[a.id] ? "on-done" : ""}" data-act="done" data-id="${a.id}">✓</button>
+        <button title="${state.skip[a.id] ? "Voltar para a lista" : "Pular hoje"}" data-act="skip" data-id="${a.id}">${state.skip[a.id] ? "↩" : "✕"}</button>
+        ${a.loc ? `<button title="Estou aqui" data-act="here" data-id="${a.id}">📍</button>` : ""}
+      </div>
+    </div>`;
+  }).join("") : `<p class="muted">Nada aqui.</p>`;
+}
+
+document.addEventListener("click", e => {
+  const b = e.target.closest("[data-act]");
+  if (b) {
+    const a = attractions.find(x => x.id === b.dataset.id);
+    if (!a) return;
+    const act = b.dataset.act;
+    if (act === "must") { must[a.id] ? delete must[a.id] : must[a.id] = true; }
+    if (act === "skip") { state.skip[a.id] ? delete state.skip[a.id] : state.skip[a.id] = true; }
+    if (act === "done") {
+      if (state.done[a.id]) { delete state.done[a.id]; state.log = state.log.filter(l => l.id !== a.id); }
+      else {
+        const wasTop = candidates()[0]?.a.id === a.id;
+        state.done[a.id] = new Date().toISOString();
+        state.log.push({ id: a.id, name: a.name, at: state.done[a.id], wait: a.wait, wasTop });
+        if (a.loc) state.here = { name: a.name, loc: a.loc };
+      }
+    }
+    if (act === "here") state.here = { name: a.name, loc: a.loc };
+    save(); render();
+    return;
+  }
+  if (e.target.closest("#pause, #resume") && parkId) {
+    state.pausedAt = state.pausedAt ? null : new Date().toISOString();
+    save(); render();
+    return;
+  }
+  const t = e.target.closest("[data-tab]");
+  if (t) {
+    tab = t.dataset.tab;
+    document.querySelectorAll("[data-tab]").forEach(x => x.classList.toggle("on", x === t));
+    render();
+  }
+});
+$("#park").addEventListener("change", e => e.target.value && selectPark(e.target.value));
+$("#refresh").addEventListener("click", () => refreshLive().catch(err => alert("Erro ao atualizar: " + err.message)));
+setInterval(() => refreshLive().catch(() => {}), REFRESH_MS);
+
+loadParks().catch(e => { $("#park").innerHTML = `<option>Erro ao carregar parques (${e.message})</option>`; });
+</script>
+</body>
+</html>
