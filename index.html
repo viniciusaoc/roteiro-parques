@@ -30,6 +30,24 @@
   .next .label { font-size: 12px; text-transform: uppercase; letter-spacing: .06em; color: var(--accent); font-weight: 600; }
   .next h2 { margin: 6px 0 4px; font-size: 22px; }
   .next .kind { font-size: 14px; margin: 2px 0 8px; }
+  .next { overflow: hidden; }
+  .photo { margin: -16px -16px 12px; }
+  .photo img { display: block; width: 100%; aspect-ratio: 16 / 9; object-fit: cover; background: var(--line); }
+  .photo figcaption { font-size: 10px; color: var(--muted); padding: 3px 16px 0; text-align: right; }
+  .photo figcaption a { color: inherit; }
+  .guide { display: flex; gap: 12px; align-items: center; background: var(--bg); border-radius: 12px; padding: 10px 12px; margin: 10px 0 8px; }
+  .compass { flex: 0 0 60px; text-align: center; }
+  .compass small { display: block; font-size: 10px; color: var(--muted); }
+  #arrow { width: 52px; height: 52px; fill: var(--accent); transition: transform .25s ease-out; }
+  .gtext { font-size: 14px; line-height: 1.45; min-width: 0; }
+  .btn.small { padding: 7px 10px; font-size: 13px; margin-bottom: 8px; }
+  .mapwrap { margin: 0 0 12px; }
+  .mapwrap summary { cursor: pointer; font-size: 14px; padding: 6px 0; }
+  .mapwrap svg { display: block; width: 100%; height: auto; background: var(--bg); border-radius: 10px; margin-top: 6px; }
+  .mlabel { font-size: 9px; fill: var(--muted); }
+  .mdest { font-size: 11px; font-weight: 700; fill: var(--accent); }
+  .mme { font-size: 10px; font-weight: 600; fill: #3b82f6; }
+  @media (prefers-reduced-motion: reduce) { #arrow { transition: none; } }
   .kindline { font-size: 12px; margin-top: 2px; }
   .next .why { color: var(--muted); font-size: 14px; margin: 6px 0 12px; }
   .stats { display: flex; gap: 16px; margin: 8px 0; }
@@ -41,6 +59,8 @@
   .tabs { display: flex; gap: 6px; margin: 16px 0 8px; }
   .tabs button { flex: 1; padding: 8px; border-radius: 8px; border: 1px solid var(--line); background: var(--card); cursor: pointer; font-size: 13px; }
   .tabs button.on { background: var(--text); color: var(--bg); }
+  .tabs button small { opacity: .7; font-size: 11px; }
+  #q { width: 100%; padding: 10px; border-radius: 10px; border: 1px solid var(--line); background: var(--card); color: var(--text); font: inherit; font-size: 14px; }
   .row { display: grid; grid-template-columns: 52px 1fr auto; gap: 10px; align-items: center; padding: 10px 0; border-bottom: 1px solid var(--line); }
   .row:last-child { border-bottom: 0; }
   .wait { text-align: center; font-weight: 700; font-size: 18px; line-height: 1; }
@@ -76,12 +96,13 @@
   <div id="next" class="card next"><span class="muted">Escolha um parque.</span></div>
 
   <div class="tabs">
-    <button data-tab="todo" class="on">A fazer</button>
-    <button data-tab="must">★ Prioridades</button>
-    <button data-tab="shows">Shows</button>
-    <button data-tab="done">Feitas</button>
-    <button data-tab="closed">Fechadas</button>
+    <button data-tab="todo" class="on">A fazer <small></small></button>
+    <button data-tab="must">★ <small></small></button>
+    <button data-tab="shows">Shows <small></small></button>
+    <button data-tab="done">Feitas <small></small></button>
+    <button data-tab="closed">Fechadas <small></small></button>
   </div>
+  <input id="q" type="search" placeholder="Buscar atração (ex.: toy story, montanha-russa)" autocomplete="off">
   <div class="card" id="list" style="padding:4px 16px"></div>
 
   <p class="muted">Em Shows, ★ num show faz o roteiro guardar tempo para chegar a ele no horário. ★ marca prioridade (peso 3×) · ✓ marca como feita (e define sua posição ali) · ✕ pula hoje · 📍 “estou aqui” quando o GPS não ajuda.</p>
@@ -296,6 +317,60 @@ const CATALOG = [
   ["zoepatra", "🎠 Brinquedo infantil|1|"],
 ].map(([k, v]) => { const [type, lvl, note] = v.split("|"); return { k, type, lvl: +lvl, note }; });
 
+// Área do parque de cada atração (chave do catálogo → nome da área)
+const LAND = Object.fromEntries(Object.entries({
+  "Fantasyland": "smallworld dumbo enchantedtales madteaparty philharmagic peterpan regalcarrousel sevendwarfs barnstormer winniethepooh underthesea caseyjr",
+  "Adventureland": "piratesadventure junglecruise jinglecruise piratesofthecaribbean swissfamily magiccarpets tikiroom",
+  "Tomorrowland": "astroorbiter buzzlightyear laughfloor carouselofprogress spacemountain tomorrowlandspeedway peoplemover tronlightcycle",
+  "Frontierland": "bigthunder countrybear tiana", "Liberty Square": "hauntedmansion hallofpresidents", "Main Street, U.S.A.": "mainstreetvehicles",
+  "World Celebration": "spaceshipearth journeyintoimagination imageworks projecttomorrow shortfilmfestival",
+  "World Discovery": "guardiansofthegalaxy testtrack missionspace advancedtraininglab",
+  "World Nature": "soarin livingwiththeland awesomeplanet seaswithnemo turtletalk seabase sharkworld journeyofwater",
+  "World Showcase · Noruega": "frozeneverafter", "World Showcase · México": "granfiesta", "World Showcase · França": "remy impressionsdefrance palaisducinema singalong",
+  "World Showcase · China": "reflectionsofchina whisperingwillows", "World Showcase · Canadá": "circlevision", "World Showcase · EUA": "americanadventure",
+  "Toy Story Land": "slinkydog alienswirling toystorymania", "Star Wars: Galaxy's Edge": "riseoftheresistance smugglersrun",
+  "Sunset Boulevard": "towerofterror rocknroller", "Hollywood Boulevard": "runawayrailway", "Echo Lake": "startours",
+  "Animation Courtyard": "olafdraws waltdisneypresents",
+  "Pandora": "flightofpassage naviriver", "Asia": "expeditioneverest kaliriver maharajah", "Africa": "kilimanjaro gorillafalls wildlifeexpress",
+  "Discovery Island": "treeoflife discoveryislandtrail zootopia", "Rafiki's Planet Watch": "conservationstation bluey", "Oasis (entrada)": "oasisexhibits",
+  "Minion Land": "minionmayhem minionblast", "Springfield": "simpsonsride kangkodos", "Beco Diagonal (Harry Potter)": "gringotts",
+  "New York": "revengeofthemummy racethroughnewyork", "Production Central": "transformers", "World Expo": "meninblack",
+  "DreamWorks Land": "trollstrollercoaster poskungfu poppysplayground etadventure",
+  "Hogsmeade (Harry Potter)": "hippogriff hagrid forbiddenjourney", "Marvel Super Hero Island": "doctordoom stormforce spiderman hulk",
+  "Jurassic Park": "campjurassic jurassicparkdiscovery jurassicparkriver velocicoaster pteranodon", "Skull Island": "skullisland",
+  "Toon Lagoon": "ripsawfalls meship popeye", "Seuss Landing": "caroseussel ifiranthezoo onefishtwofish catinthehat seusstrolley",
+  "Celestial Park": "astronomica constellationcarousel stardustracers", "Dark Universe": "curseofthewerewolf monstersunchained",
+  "Isle of Berk (Como Treinar Seu Dragão)": "dragonracer fyredrill hiccup vikingtraining",
+  "Super Nintendo World": "bowserjr mariokart minecart yoshi", "Ministério da Magia (Harry Potter)": "battleattheministry",
+  "Sesame Street": "abbysflower cookiedrop elmoschoo rositasharmony slimeys sunnydaycarousel supergrover",
+  "Egypt": "montu cobrascurse", "Congo": "kumba congoriver ubangabanga", "Stanleyville": "sheikra", "Pantopia": "falconsfury grandcaravan",
+  "Bird Gardens": "phoenixrising",
+  "Sesame Street Safari of Fun": "airgrover bigbirdswhirly elmossafari rositasdjembe snuffys countszambezi zoepatra treetopdrop",
+}).flatMap(([land, keys]) => keys.split(" ").map(k => [k, land])));
+
+// Marcos grandes, visíveis de longe, por parque (chave do catálogo → como chamar)
+const LANDMARKS = {
+  cinderellacastle: "o Castelo da Cinderela", spacemountain: "a cúpula branca do Space Mountain", bigthunder: "a montanha vermelha do Big Thunder",
+  tronlightcycle: "a cobertura colorida do TRON", tiana: "a montanha com cachoeira da Tiana", astroorbiter: "os foguetes do Astro Orbiter",
+  spaceshipearth: "a esfera Spaceship Earth", testtrack: "o prédio do Test Track", guardiansofthegalaxy: "o prédio do Guardiões da Galáxia",
+  americanadventure: "o prédio colonial da American Adventure", impressionsdefrance: "a Torre Eiffel da França", reflectionsofchina: "o templo da China",
+  towerofterror: "a Torre do Terror", rocknroller: "a guitarra gigante do Rock 'n' Roller", riseoftheresistance: "as rochas gigantes de Galaxy's Edge",
+  slinkydog: "a montanha-russa do Slinky Dog", runawayrailway: "o Teatro Chinês",
+  treeoflife: "a Árvore da Vida", expeditioneverest: "o Monte Everest", flightofpassage: "as montanhas flutuantes de Pandora",
+  gringotts: "a fachada de Londres (entrada do Beco Diagonal)", simpsonsride: "a cara do Krusty (Simpsons)", meninblack: "o globo do Men in Black",
+  revengeofthemummy: "os prédios de Nova York (Múmia)", transformers: "o prédio do Transformers",
+  forbiddenjourney: "o Castelo de Hogwarts", hulk: "a montanha-russa verde do Hulk", velocicoaster: "os trilhos do VelociCoaster",
+  jurassicparkriver: "o portão do Jurassic Park", doctordoom: "as torres do Doctor Doom", skullisland: "a caveira de pedra do Skull Island",
+  stardustracers: "a montanha-russa dupla do centro (Stardust Racers)", battleattheministry: "o prédio do Ministério da Magia",
+  mariokart: "o castelo do Bowser", monstersunchained: "o castelo do Frankenstein", hiccup: "a ilha de Berk",
+  mako: "a montanha-russa azul e alta (Mako)", kraken: "a montanha-russa verde (Kraken)", manta: "a montanha-russa Manta",
+  skytower: "a Sky Tower (torre alta)", journeytoatlantis: "o templo branco de Atlantis", icebreaker: "o Ice Breaker",
+  sheikra: "a queda vertical do SheiKra", irongwazi: "o Iron Gwazi", montu: "o Montu", falconsfury: "a torre do Falcon's Fury", kumba: "o Kumba",
+};
+
+// Fotos de licença livre (Wikimedia Commons), verificadas uma a uma; gerado a partir da Wikipédia
+const PHOTOS = {"bigthunder":["https://thumb.wikimedia.org/wikipedia/commons/thumb/1/1e/Big_Thunder_Mountain_Railroad_2.jpg/960px-Big_Thunder_Mountain_Railroad_2.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail","Big_Thunder_Mountain_Railroad_2.jpg"],"buzzlightyear":["https://thumb.wikimedia.org/wikipedia/commons/thumb/2/2c/Magic_Kingdom_171_%288209375869%29.jpg/960px-Magic_Kingdom_171_%288209375869%29.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail","Magic_Kingdom_171_(8209375869).jpg"],"cinderellacastle":["https://thumb.wikimedia.org/wikipedia/commons/thumb/e/e6/Cinderella_Castle%2C_Magic_Kingdom_%282026%29.jpg/960px-Cinderella_Castle%2C_Magic_Kingdom_%282026%29.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail","Cinderella_Castle,_Magic_Kingdom_(2026).jpg"],"countrybear":["https://thumb.wikimedia.org/wikipedia/commons/thumb/6/62/Country_Bear_Musical_Jamboree.jpg/960px-Country_Bear_Musical_Jamboree.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail","Country_Bear_Musical_Jamboree.jpg"],"madteaparty":["https://upload.wikimedia.org/wikipedia/commons/8/80/TeacupsMadTeaParty_wb.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail_unscaled","TeacupsMadTeaParty_wb.jpg"],"sevendwarfs":["https://thumb.wikimedia.org/wikipedia/commons/thumb/f/f0/Seven_Dwarfs_Mine_Train.jpg/960px-Seven_Dwarfs_Mine_Train.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail","Seven_Dwarfs_Mine_Train.jpg"],"swissfamily":["https://thumb.wikimedia.org/wikipedia/commons/thumb/7/78/Swiss_Family_Robinson_Treehouse_1.jpg/960px-Swiss_Family_Robinson_Treehouse_1.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail","Swiss_Family_Robinson_Treehouse_1.jpg"],"barnstormer":["https://thumb.wikimedia.org/wikipedia/commons/thumb/e/eb/WDW_Magic_Kingdom_Storybook_Circus.jpg/960px-WDW_Magic_Kingdom_Storybook_Circus.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail","WDW_Magic_Kingdom_Storybook_Circus.jpg"],"hallofpresidents":["https://thumb.wikimedia.org/wikipedia/commons/thumb/1/1a/Hall_of_Presidents_on_Election_Day_%2830561289940%29.jpg/960px-Hall_of_Presidents_on_Election_Day_%2830561289940%29.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail","Hall_of_Presidents_on_Election_Day_(30561289940).jpg"],"peoplemover":["https://thumb.wikimedia.org/wikipedia/commons/thumb/0/07/Wdw-peoplemover.jpg/960px-Wdw-peoplemover.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail","Wdw-peoplemover.jpg"],"tronlightcycle":["https://thumb.wikimedia.org/wikipedia/commons/thumb/2/26/TRON_Lightcycle_Power_Run%2C_attraction_exterior.jpg/960px-TRON_Lightcycle_Power_Run%2C_attraction_exterior.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail","TRON_Lightcycle_Power_Run,_attraction_exterior.jpg"],"spaceshipearth":["https://thumb.wikimedia.org/wikipedia/commons/thumb/5/5b/Spaceship_Earth_%283-4_crop%29.jpg/960px-Spaceship_Earth_%283-4_crop%29.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail","Spaceship_Earth_(3-4_crop).jpg"],"missionspace":["https://thumb.wikimedia.org/wikipedia/commons/thumb/b/b4/Mission_Space_Epcot.jpg/960px-Mission_Space_Epcot.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail","Mission_Space_Epcot.jpg"],"guardiansofthegalaxy":["https://thumb.wikimedia.org/wikipedia/commons/thumb/f/f6/Guardians_of_the_Galaxy_Cosmic_Rewind-Cast_Preview_%2852030963400%29_%28cropped%29.jpg/960px-Guardians_of_the_Galaxy_Cosmic_Rewind-Cast_Preview_%2852030963400%29_%28cropped%29.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail","Guardians_of_the_Galaxy_Cosmic_Rewind-Cast_Preview_(52030963400)_(cropped).jpg"],"livingwiththeland":["https://thumb.wikimedia.org/wikipedia/commons/thumb/1/11/Living_with_the_Land_34.jpg/960px-Living_with_the_Land_34.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail","Living_with_the_Land_34.jpg"],"journeyintoimagination":["https://thumb.wikimedia.org/wikipedia/commons/thumb/3/36/Journey_Into_Imagination_Epcot.jpg/960px-Journey_Into_Imagination_Epcot.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail","Journey_Into_Imagination_Epcot.jpg"],"impressionsdefrance":["https://thumb.wikimedia.org/wikipedia/commons/thumb/7/79/Epcot_paris.JPG/960px-Epcot_paris.JPG?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail","Epcot_paris.JPG"],"slinkydog":["https://thumb.wikimedia.org/wikipedia/commons/thumb/0/0a/Slinky_Dog_Dash_%2829262611338%29_%28cropped%29.jpg/960px-Slinky_Dog_Dash_%2829262611338%29_%28cropped%29.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail","Slinky_Dog_Dash_(29262611338)_(cropped).jpg"],"alienswirling":["https://thumb.wikimedia.org/wikipedia/commons/thumb/6/61/Alien_Swirling_Saucers_%2842230333595%29.jpg/960px-Alien_Swirling_Saucers_%2842230333595%29.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail","Alien_Swirling_Saucers_(42230333595).jpg"],"riseoftheresistance":["https://thumb.wikimedia.org/wikipedia/commons/thumb/0/0a/Rise_of_the_Resistance.jpg/960px-Rise_of_the_Resistance.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail","Rise_of_the_Resistance.jpg"],"rocknroller":["https://thumb.wikimedia.org/wikipedia/commons/thumb/c/ce/Rock_%27n%27_Roller_Coaster_Starring_The_Muppets_entrance.jpeg/960px-Rock_%27n%27_Roller_Coaster_Starring_The_Muppets_entrance.jpeg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail","Rock_'n'_Roller_Coaster_Starring_The_Muppets_entrance.jpeg"],"flightofpassage":["https://thumb.wikimedia.org/wikipedia/commons/thumb/f/f1/Avatar_Flight_of_Passage_%2833825577724%29.jpg/960px-Avatar_Flight_of_Passage_%2833825577724%29.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail","Avatar_Flight_of_Passage_(33825577724).jpg"],"expeditioneverest":["https://thumb.wikimedia.org/wikipedia/commons/thumb/2/21/Expedition_Everest_%2842563554354%29.jpg/960px-Expedition_Everest_%2842563554354%29.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail","Expedition_Everest_(42563554354).jpg"],"kaliriver":["https://thumb.wikimedia.org/wikipedia/commons/thumb/f/f2/Animal_Kingdom_%2807-07-06%29_042.jpg/960px-Animal_Kingdom_%2807-07-06%29_042.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail","Animal_Kingdom_(07-07-06)_042.jpg"],"naviriver":["https://thumb.wikimedia.org/wikipedia/commons/thumb/8/8b/Na%27vi_River_Journey_-_Disney%27s_Animal_Kingdom_01.jpg/960px-Na%27vi_River_Journey_-_Disney%27s_Animal_Kingdom_01.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail","Na'vi_River_Journey_-_Disney's_Animal_Kingdom_01.jpg"],"treeoflife":["https://thumb.wikimedia.org/wikipedia/commons/thumb/a/a4/Tree_of_Life%2C_Disney%27s_Animal_Kingdom.jpg/960px-Tree_of_Life%2C_Disney%27s_Animal_Kingdom.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail","Tree_of_Life,_Disney's_Animal_Kingdom.jpg"],"maharajah":["https://thumb.wikimedia.org/wikipedia/commons/thumb/a/a3/Maharajah_Jungle_Trek.JPG/960px-Maharajah_Jungle_Trek.JPG?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail","Maharajah_Jungle_Trek.JPG"],"wildlifeexpress":["https://thumb.wikimedia.org/wikipedia/commons/thumb/5/5e/Wildlife_Express_Harambe_Station_Train.jpg/960px-Wildlife_Express_Harambe_Station_Train.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail","Wildlife_Express_Harambe_Station_Train.jpg"],"minionmayhem":["https://thumb.wikimedia.org/wikipedia/commons/thumb/7/7b/Despicable_Me_Minion_Mayhem_at_Universal_Studios%2C_Orlando_%2837491242606%29.jpg/960px-Despicable_Me_Minion_Mayhem_at_Universal_Studios%2C_Orlando_%2837491242606%29.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail","Despicable_Me_Minion_Mayhem_at_Universal_Studios,_Orlando_(37491242606).jpg"],"etadventure":["https://thumb.wikimedia.org/wikipedia/commons/thumb/4/42/ET_Adventure_facade_2.jpg/960px-ET_Adventure_facade_2.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail","ET_Adventure_facade_2.jpg"],"gringotts":["https://thumb.wikimedia.org/wikipedia/commons/thumb/2/21/Diagon_Alley3.jpg/960px-Diagon_Alley3.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail","Diagon_Alley3.jpg"],"hogwartsexpress":["https://thumb.wikimedia.org/wikipedia/commons/thumb/b/b3/Hogwarts_Express_Hogsmeade.jpg/960px-Hogwarts_Express_Hogsmeade.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail","Hogwarts_Express_Hogsmeade.jpg"],"kangkodos":["https://thumb.wikimedia.org/wikipedia/commons/thumb/4/4e/Kang_%26_Kodos_Twirl_n_Hurl_Springfield_U_S_A.JPG/960px-Kang_%26_Kodos_Twirl_n_Hurl_Springfield_U_S_A.JPG?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail","Kang_&_Kodos_Twirl_n_Hurl_Springfield_U_S_A.JPG"],"racethroughnewyork":["https://thumb.wikimedia.org/wikipedia/commons/thumb/5/5d/Race_Through_New_York_Starring_Jimmy_Fallon_%2836916486110%29.jpg/960px-Race_Through_New_York_Starring_Jimmy_Fallon_%2836916486110%29.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail","Race_Through_New_York_Starring_Jimmy_Fallon_(36916486110).jpg"],"revengeofthemummy":["https://thumb.wikimedia.org/wikipedia/commons/thumb/6/62/Revenge_of_the_Mummy_facade_and_banners%2C_Revenge_of_the_Mummy%2C_June_2006_-_ThrillZing.jpg/960px-Revenge_of_the_Mummy_facade_and_banners%2C_Revenge_of_the_Mummy%2C_June_2006_-_ThrillZing.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail","Revenge_of_the_Mummy_facade_and_banners,_Revenge_of_the_Mummy,_June_2006_-_ThrillZing.jpg"],"simpsonsride":["https://thumb.wikimedia.org/wikipedia/commons/thumb/a/a4/The_Simpsons_Ride_at_Universal_Studios_Florida.jpg/960px-The_Simpsons_Ride_at_Universal_Studios_Florida.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail","The_Simpsons_Ride_at_Universal_Studios_Florida.jpg"],"transformers":["https://thumb.wikimedia.org/wikipedia/commons/thumb/0/00/TransformersTheRide.JPG/960px-TransformersTheRide.JPG?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail","TransformersTheRide.JPG"],"doctordoom":["https://thumb.wikimedia.org/wikipedia/commons/thumb/8/82/Marvel_Super_Hero_Island_23.jpg/960px-Marvel_Super_Hero_Island_23.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail","Marvel_Super_Hero_Island_23.jpg"],"hippogriff":["https://thumb.wikimedia.org/wikipedia/commons/thumb/b/b5/Flight_of_the_Hippogriff_at_Islands_of_Adventure.jpg/960px-Flight_of_the_Hippogriff_at_Islands_of_Adventure.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail","Flight_of_the_Hippogriff_at_Islands_of_Adventure.jpg"],"hagrid":["https://thumb.wikimedia.org/wikipedia/commons/thumb/2/21/HagridsMagicalCreaturesMotorbikeAdventureEntrance.jpg/960px-HagridsMagicalCreaturesMotorbikeAdventureEntrance.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail","HagridsMagicalCreaturesMotorbikeAdventureEntrance.jpg"],"forbiddenjourney":["https://thumb.wikimedia.org/wikipedia/commons/thumb/c/c4/Wizarding_World_of_Harry_Potter_Castle.jpg/960px-Wizarding_World_of_Harry_Potter_Castle.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail","Wizarding_World_of_Harry_Potter_Castle.jpg"],"velocicoaster":["https://thumb.wikimedia.org/wikipedia/commons/thumb/1/18/Islands_of_Adventure_Orlando_%2851149417278%29_%28cropped%29.jpg/960px-Islands_of_Adventure_Orlando_%2851149417278%29_%28cropped%29.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail","Islands_of_Adventure_Orlando_(51149417278)_(cropped).jpg"],"popeye":["https://thumb.wikimedia.org/wikipedia/commons/thumb/4/49/Popeye_and_Blutos_Bilge-Rat_Barges_11.jpg/960px-Popeye_and_Blutos_Bilge-Rat_Barges_11.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail","Popeye_and_Blutos_Bilge-Rat_Barges_11.jpg"],"stormforce":["https://thumb.wikimedia.org/wikipedia/commons/thumb/7/7d/StormForce.JPG/960px-StormForce.JPG?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail","StormForce.JPG"],"spiderman":["https://thumb.wikimedia.org/wikipedia/commons/thumb/c/c9/The_Amazing_Adventures_of_Spider-Man_entrance_1.jpg/960px-The_Amazing_Adventures_of_Spider-Man_entrance_1.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail","The_Amazing_Adventures_of_Spider-Man_entrance_1.jpg"],"hulk":["https://thumb.wikimedia.org/wikipedia/commons/thumb/9/90/The_Hulk_Coaster_%285143123646%29.jpg/960px-The_Hulk_Coaster_%285143123646%29.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail","The_Hulk_Coaster_(5143123646).jpg"],"stardustracers":["https://thumb.wikimedia.org/wikipedia/commons/thumb/a/ad/Stardust_Racers_in_twilight.jpg/960px-Stardust_Racers_in_twilight.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail","Stardust_Racers_in_twilight.jpg"],"mako":["https://thumb.wikimedia.org/wikipedia/commons/thumb/6/61/Mako_%2838327155394%29_%28cropped%29.jpg/960px-Mako_%2838327155394%29_%28cropped%29.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail","Mako_(38327155394)_(cropped).jpg"],"kraken":["https://thumb.wikimedia.org/wikipedia/commons/thumb/2/2e/Kraken_%28SeaWorld_Orlando%29_01.jpg/960px-Kraken_%28SeaWorld_Orlando%29_01.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail","Kraken_(SeaWorld_Orlando)_01.jpg"],"manta":["https://upload.wikimedia.org/wikipedia/commons/3/3d/Mantawater.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail_unscaled","Mantawater.jpg"],"icebreaker":["https://thumb.wikimedia.org/wikipedia/commons/thumb/2/21/Ice_Breaker_2020.jpg/960px-Ice_Breaker_2020.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail","Ice_Breaker_2020.jpg"],"pipeline":["https://thumb.wikimedia.org/wikipedia/commons/thumb/d/d8/Pipeline_The_Surf_Coaster%27s_over-banked_turn.jpg/960px-Pipeline_The_Surf_Coaster%27s_over-banked_turn.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail","Pipeline_The_Surf_Coaster's_over-banked_turn.jpg"],"infinityfalls":["https://thumb.wikimedia.org/wikipedia/commons/thumb/b/bb/Infinity_Falls_layout_drop.jpg/960px-Infinity_Falls_layout_drop.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail","Infinity_Falls_layout_drop.jpg"],"penguintrek":["https://thumb.wikimedia.org/wikipedia/commons/thumb/9/94/Penguin_Trek_and_the_Manta_March_2026.jpg/960px-Penguin_Trek_and_the_Manta_March_2026.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail","Penguin_Trek_and_the_Manta_March_2026.jpg"],"sheikra":["https://thumb.wikimedia.org/wikipedia/commons/thumb/8/82/SheiKra_%28Busch_Gardens_Africa%29_05.JPG/960px-SheiKra_%28Busch_Gardens_Africa%29_05.JPG?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail","SheiKra_(Busch_Gardens_Africa)_05.JPG"],"montu":["https://thumb.wikimedia.org/wikipedia/commons/thumb/2/2d/Montu_%28Busch_Gardens_Africa%29_01.jpg/960px-Montu_%28Busch_Gardens_Africa%29_01.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail","Montu_(Busch_Gardens_Africa)_01.jpg"],"kumba":["https://thumb.wikimedia.org/wikipedia/commons/thumb/6/66/Kumbas_vertical_loop_3.jpg/960px-Kumbas_vertical_loop_3.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail","Kumbas_vertical_loop_3.jpg"],"cheetahhunt":["https://thumb.wikimedia.org/wikipedia/commons/thumb/2/21/Cheetah_Hunt_overview.jpg/960px-Cheetah_Hunt_overview.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail","Cheetah_Hunt_overview.jpg"],"irongwazi":["https://thumb.wikimedia.org/wikipedia/commons/thumb/7/73/Iron_Gwazi_%2811%29.jpg/960px-Iron_Gwazi_%2811%29.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail","Iron_Gwazi_(11).jpg"],"tigris":["https://thumb.wikimedia.org/wikipedia/commons/thumb/6/64/Tigris_Busch_Gardens.jpg/960px-Tigris_Busch_Gardens.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail","Tigris_Busch_Gardens.jpg"],"falconsfury":["https://thumb.wikimedia.org/wikipedia/commons/thumb/1/12/Falcon%27s_Fury_%28August_17%2C_2014%29.jpg/960px-Falcon%27s_Fury_%28August_17%2C_2014%29.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail","Falcon's_Fury_(August_17,_2014).jpg"],"cobrascurse":["https://thumb.wikimedia.org/wikipedia/commons/thumb/3/3f/Cobra%27s_Curse_elevator_lift.jpg/960px-Cobra%27s_Curse_elevator_lift.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail","Cobra's_Curse_elevator_lift.jpg"],"phoenixrising":["https://thumb.wikimedia.org/wikipedia/commons/thumb/8/86/Phoenix_Rising_view.jpg/960px-Phoenix_Rising_view.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail","Phoenix_Rising_view.jpg"],"serengetiexpress":["https://thumb.wikimedia.org/wikipedia/commons/thumb/4/49/Train_Busch_Gardens_Tampa.jpg/960px-Train_Busch_Gardens_Tampa.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail","Train_Busch_Gardens_Tampa.jpg"]};
+
 const norm = s => s.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase().replace(/[^a-z0-9]/g, "");
 function infoFor(a) {
   const n = norm(a.name);
@@ -309,12 +384,177 @@ function infoFor(a) {
   if (a.type === "SHOW") return { type: a.isShow ? "🎭 Show" : "🤝 Experiência", lvl: 0, note: "" };
   return null;
 }
+// Busca por franquia/área: o nome da atração nem sempre cita a franquia (ex.: Millennium Falcon = Star Wars)
+const FRANCHISE = {
+  starwars: ["starwars", "millenniumfalcon", "startours", "riseoftheresistance", "firstorder"],
+  toystory: ["toystory", "slinkydog", "alienswirling", "meetthetoys"],
+  harrypotter: ["harrypotter", "gringotts", "hogwarts", "forbiddenjourney", "hagrid", "hippogriff", "ollivanders",
+    "battleattheministry", "knightbus", "celestina", "beedle", "deatheaters"],
+  marvel: ["spiderman", "hulk", "doctordoom", "stormforce"],
+  jurassic: ["jurassic", "velocicoaster", "pteranodon", "skullisland"],
+  mario: ["mario", "yoshi", "minecart", "bowserjr"], nintendo: ["mario", "yoshi", "minecart", "bowserjr"],
+  frozen: ["frozen", "olaf"], avatar: ["flightofpassage", "naviriver"], pandora: ["flightofpassage", "naviriver"],
+  minion: ["minion"], dragao: ["hiccup", "dragonracer", "fyredrill", "vikingtraining"],
+  pixar: ["toystory", "slinkydog", "alienswirling", "remy", "laughfloor", "edna", "turtletalk", "seaswithnemo"],
+  sesame: ["elmo", "grover", "abby", "cookie", "bigbird", "rosita", "slimey", "snuffy", "count", "zoepatra", "rubberduckie", "sunnyday", "sesame"],
+};
+function matchesQuery(a, q) {
+  const n = norm(a.name);
+  if (n.includes(q) || norm(infoFor(a)?.type || "").includes(q)) return true;
+  return Object.entries(FRANCHISE).some(([k, keys]) => (k.startsWith(q) || q.startsWith(k)) && keys.some(x => n.includes(x)));
+}
+
 const LVL = { 1: ["Leve", "w-good"], 2: ["Moderada", "w-mid"], 3: ["Radical", "w-bad"] };
 function infoLine(a, long) {
   const i = infoFor(a);
   if (!i) return "";
   const lvl = LVL[i.lvl] ? ` · <span class="${LVL[i.lvl][1]}">${LVL[i.lvl][0]}</span>` : "";
   return `${i.type}${lvl}${long && i.note ? ` · ${esc(i.note)}` : ""}`;
+}
+
+// ---------- orientação: marcos, seta-bússola, mapa e foto ----------
+const keyFor = a => a.type !== "SHOW" ? CATALOG.find(c => norm(a.name).includes(c.k))?.k : null;
+function bearing(a, b) {
+  const r = x => x * Math.PI / 180;
+  const y = Math.sin(r(b.lng - a.lng)) * Math.cos(r(b.lat));
+  const x = Math.cos(r(a.lat)) * Math.sin(r(b.lat)) - Math.sin(r(a.lat)) * Math.cos(r(b.lat)) * Math.cos(r(b.lng - a.lng));
+  return (Math.atan2(y, x) * 180 / Math.PI + 360) % 360;
+}
+const CARD = ["norte", "nordeste", "leste", "sudeste", "sul", "sudoeste", "oeste", "noroeste"];
+const cardinal = b => CARD[Math.round(b / 45) % 8];
+// "o Castelo" → "do Castelo" / "ao Castelo"; "a esfera" → "da esfera" / "à esfera"
+const deL = l => l.replace(/^o /, "do ").replace(/^a /, "da ").replace(/^os /, "dos ").replace(/^as /, "das ");
+const aL = l => l.replace(/^o /, "ao ").replace(/^a /, "à ").replace(/^os /, "aos ").replace(/^as /, "às ");
+
+function parkLandmarks() {
+  return Object.entries(LANDMARKS).map(([k, label]) => {
+    const a = attractions.find(x => x.loc && x.type !== "SHOW" && norm(x.name).includes(k));
+    return a && { k, label, loc: a.loc, id: a.id };
+  }).filter(Boolean);
+}
+
+function directions(a, from) {
+  if (!a.loc || !from) return null;
+  const dist = distM(from, a.loc), brg = bearing(from, a.loc);
+  const lms = parkLandmarks();
+  const k = keyFor(a);
+  const self = lms.find(l => l.id === a.id) || null;
+  const near = lms.filter(l => l.id !== a.id).map(l => ({ ...l, d: distM(l.loc, a.loc) })).sort((x, y) => x.d - y.d)[0];
+  // marco que fica na mesma direção do destino (até 35° de diferença) e não está colado em você
+  const guide = lms.filter(l => distM(from, l.loc) > 60)
+    .map(l => ({ ...l, diff: Math.abs(((bearing(from, l.loc) - brg + 540) % 360) - 180), d: distM(from, l.loc) }))
+    .filter(l => l.diff <= 35 && l.d >= dist * 0.4)
+    .sort((x, y) => x.diff - y.diff)[0] || null;
+  return { dist, brg, land: k ? LAND[k] : null, self, near: near && near.d <= 200 ? near : null, guide };
+}
+
+let heading = null, guideBrg = null, compassOn = false, mapOpen = false;
+function updateArrow() {
+  const el = document.getElementById("arrow");
+  if (!el || guideBrg == null) return;
+  el.style.transform = `rotate(${heading == null ? guideBrg : guideBrg - heading}deg)`;
+}
+function onOrientation(e) {
+  const h = e.webkitCompassHeading != null ? e.webkitCompassHeading : (e.absolute && e.alpha != null ? 360 - e.alpha : null);
+  if (h == null) return;
+  const first = heading == null;
+  heading = h;
+  first ? render() : updateArrow();
+}
+async function enableCompass() {
+  try {
+    if (typeof DeviceOrientationEvent !== "undefined" && typeof DeviceOrientationEvent.requestPermission === "function") {
+      if (await DeviceOrientationEvent.requestPermission() !== "granted") return;   // iPhone pede permissão
+      window.addEventListener("deviceorientation", onOrientation, true);
+    } else {
+      window.addEventListener("deviceorientationabsolute", onOrientation, true);    // Android
+      window.addEventListener("deviceorientation", onOrientation, true);
+    }
+    compassOn = true;
+    render();
+  } catch { /* sem bússola: a seta fica com o norte para cima */ }
+}
+
+function mapSvg(dest, from) {
+  const pts = attractions.filter(a => a.loc);
+  if (!pts.length) return "";
+  const c = parkCenter();
+  const useFrom = from && distM(from, c) < 1500;
+  const k = Math.cos(c.lat * Math.PI / 180);
+  const all = [...pts.map(a => a.loc), ...(useFrom ? [from] : [])];
+  const xs = all.map(p => p.lng * k), ys = all.map(p => -p.lat);
+  const minX = Math.min(...xs), maxX = Math.max(...xs), minY = Math.min(...ys), maxY = Math.max(...ys);
+  const W = 340, pad = 24;
+  const scale = (W - 2 * pad) / Math.max(maxX - minX, 1e-9);
+  const H = Math.min(420, Math.max(200, (maxY - minY) * scale + 2 * pad));
+  const s2 = Math.min(scale, (H - 2 * pad) / Math.max(maxY - minY, 1e-9));
+  const P = p => [(pad + (p.lng * k - minX) * s2).toFixed(1), (pad + (-p.lat - minY) * s2).toFixed(1)];
+  // texto perto da borda alinha para dentro, para não ser cortado
+  const anchor = x => +x < W * 0.3 ? `x="${Math.max(4, +x - 6)}" text-anchor="start"` : +x > W * 0.7 ? `x="${Math.min(W - 4, +x + 6)}" text-anchor="end"` : `x="${x}" text-anchor="middle"`;
+  const lmIds = new Set(parkLandmarks().map(l => l.id));
+  const [dx, dy] = P(dest.loc);
+  const dots = pts.filter(a => a.id !== dest.id && !a.isShow).map(a => {
+    const [x, y] = P(a.loc);
+    // nome do marco some se for colidir com o nome do destino
+    const big = lmIds.has(a.id) && !(Math.abs(+x - +dx) < 90 && Math.abs(+y - +dy) < 22);
+    const open = a.status === "OPERATING" && a.wait != null;
+    const col = !open ? "var(--line)" : a.wait <= 20 ? "var(--good)" : a.wait <= 45 ? "var(--mid)" : "var(--bad)";
+    return `<circle cx="${x}" cy="${y}" r="${big ? 5 : 3.5}" style="fill:${col}"><title>${esc(a.name)}${open ? ` · ${a.wait} min` : ""}</title></circle>` +
+      (big ? `<text ${anchor(x)} y="${(+y - 8).toFixed(1)}" class="mlabel">${esc(a.name.replace(/[™®]/g, "").split(/[:–-]/)[0].slice(0, 20))}</text>` : "");
+  }).join("");
+  let me = "";
+  if (useFrom) {
+    const [fx, fy] = P(from);
+    me = `<line x1="${fx}" y1="${fy}" x2="${dx}" y2="${dy}" style="stroke:var(--accent)" stroke-width="2" stroke-dasharray="5 4"/>` +
+      `<circle cx="${fx}" cy="${fy}" r="6" style="fill:#3b82f6;stroke:var(--card)" stroke-width="2"/>` +
+      `<text ${anchor(fx)} y="${(+fy + 18).toFixed(1)}" class="mlabel mme">você</text>`;
+  }
+  const destLabel = esc(dest.name.replace(/[™®]/g, "").slice(0, 26));
+  return `<svg viewBox="0 0 ${W} ${H.toFixed(0)}" role="img" aria-label="Mapa simplificado do parque">
+    ${dots}${me}
+    <circle cx="${dx}" cy="${dy}" r="9" style="fill:none;stroke:var(--accent)" stroke-width="3"/>
+    <circle cx="${dx}" cy="${dy}" r="4" style="fill:var(--accent)"/>
+    <text ${anchor(dx)} y="${(+dy - 13).toFixed(1)}" class="mlabel mdest">${destLabel}</text>
+    <text x="${W - 10}" y="18" text-anchor="end" class="mlabel">N ↑</text>
+  </svg>`;
+}
+
+function guideBlock(a) {
+  const cur = currentPos();
+  const d = directions(a, cur.pos);
+  if (!d) return "";
+  guideBrg = d.brg;
+  const lines = [];
+  if (d.dist < 40) lines.push("<b>Você já está pertinho!</b>");
+  const parts = [];
+  if (d.land) parts.push(`Fica em <b>${esc(d.land)}</b>`);
+  if (d.self) parts.push(`${d.land ? "é" : "É"} ${esc(d.self.label)}`);
+  else if (d.near) parts.push(`${d.land ? "perto" : "Fica perto"} ${esc(deL(d.near.label))}`);
+  if (parts.length) lines.push(`📍 ${parts.join(", ")}`);
+  if (d.guide && d.dist >= 40) lines.push(d.guide.id === a.id ? "➤ Siga em direção a ela" : `➤ Siga em direção ${esc(aL(d.guide.label))}`);
+  if (d.dist >= 40) lines.push(`<span class="muted">~${Math.round(d.dist / 10) * 10} m em linha reta, para o ${cardinal(d.brg)}. O caminho pode fazer curvas.</span>`);
+  if (cur.src === "centro do parque") lines.push(`<span class="muted">Toque ✓ ou 📍 na atração onde você está para a seta ficar precisa.</span>`);
+  else if (cur.src !== "GPS") lines.push(`<span class="muted">Saindo de: ${esc(cur.src)}</span>`);
+  const arrowHint = heading != null ? "siga a seta" : compassOn ? "aguardando bússola…" : "N ↑ = topo";
+  return `
+    <div class="guide">
+      <div class="compass">
+        <svg id="arrow" viewBox="0 0 40 40" style="transform:rotate(${heading == null ? d.brg : d.brg - heading}deg)"><path d="M20 3 L31 35 L20 28 L9 35 Z"/></svg>
+        <small>${arrowHint}</small>
+      </div>
+      <div class="gtext">${lines.join("<br>")}</div>
+    </div>
+    ${!compassOn ? `<button class="btn small" id="compassBtn">🧭 Ativar bússola (a seta gira com você)</button>` : ""}
+    <details id="mapd" class="mapwrap" ${mapOpen ? "open" : ""}><summary>🗺️ Ver no mapa</summary>${mapSvg(a, cur.pos)}
+      <p class="muted" style="margin:6px 0 0">Bolinhas: verde ≤20 min · amarelo ≤45 · vermelho &gt;45 · cinza fechada. Nomes = marcos visíveis.</p></details>`;
+}
+
+function photoHtml(a) {
+  const k = keyFor(a), p = k && PHOTOS[k];
+  if (!p) return "";
+  const src = p[0].startsWith("http") ? p[0] : "https://upload.wikimedia.org/wikipedia/commons/thumb/" + p[0];
+  return `<figure class="photo"><img src="${src}" alt="Foto de ${esc(a.name)}" loading="lazy" onerror="this.closest('figure').remove()">
+    <figcaption>Foto: <a href="https://en.wikipedia.org/wiki/File:${encodeURIComponent(p[1])}" target="_blank" rel="noopener">Wikimedia Commons</a></figcaption></figure>`;
 }
 
 const $ = s => document.querySelector(s);
@@ -491,21 +731,27 @@ function upcomingShow(pos) {
     .sort((x, y) => x.t - y.t)[0] || null;
 }
 
-function candidates() {
+// Avalia todas as atrações abertas. As que não cabem agora não somem da lista: ganham um "block"
+//   "close" = não dá para entrar na fila antes de o parque fechar
+//   "show"  = não dá para fazer e ainda chegar ao show ★ com 10 min de folga
+function evaluate() {
   const { pos } = currentPos();
-  let list = attractions
+  const sh = upcomingShow(pos);
+  const minsTo = sh ? (sh.t - Date.now()) / 60000 : Infinity;
+  const all = attractions
     .filter(a => !a.isShow && !state.done[a.id] && !state.skip[a.id] && a.wait != null &&
       (a.status === "OPERATING" || (a.status === "?" && must[a.id])))
-    .map(a => ({ a, s: score(a, pos) }))
-    .filter(c => c.s.walk < minsLeft());   // dá para entrar na fila antes de fechar
-  // Se há um show ★ chegando, só sugere o que dá para fazer e ainda chegar ao show com 10 min de folga
-  const sh = upcomingShow(pos);
-  if (sh) {
-    const minsTo = (sh.t - Date.now()) / 60000;
-    list = list.filter(c => c.s.cost + (c.a.loc && sh.a.loc ? walkMin(distM(c.a.loc, sh.a.loc)) : 10) + 10 <= minsTo);
-  }
-  return list.sort((x, y) => y.s.value - x.s.value);
+    .map(a => {
+      const s = score(a, pos);
+      let block = null;
+      if (s.walk >= minsLeft()) block = "close";
+      else if (sh && s.cost + (a.loc && sh.a.loc ? walkMin(distM(a.loc, sh.a.loc)) : 10) + 10 > minsTo) block = "show";
+      return { a, s, block };
+    })
+    .sort((x, y) => y.s.value - x.s.value);
+  return { all, sh };
 }
+const candidates = () => evaluate().all.filter(c => !c.block);
 
 // ---------- UI ----------
 const waitCls = w => w == null ? "" : w <= 20 ? "w-good" : w <= 45 ? "w-mid" : "w-bad";
@@ -564,6 +810,7 @@ function render() {
         <div><b>${fmtT(leaveBy)}</b>saia até</div>
       </div>
       <p class="why">Você marcou este show como prioridade. Chegar uns 10 min antes garante lugar melhor.</p>
+      ${guideBlock(sh.a)}
       <div class="actions">
         <button class="btn primary" data-act="done" data-id="${sh.a.id}">✓ Assisti</button>
         <button class="btn" data-act="skip" data-id="${sh.a.id}">Pular</button>
@@ -574,7 +821,7 @@ function render() {
   } else {
     const { a, s } = cands[0];
     const dest = a.loc ? `https://www.google.com/maps/dir/?api=1&destination=${a.loc.lat},${a.loc.lng}&travelmode=walking` : null;
-    next.innerHTML = `
+    next.innerHTML = `${photoHtml(a)}
       <div class="label">Próxima atração</div>
       <h2>${must[a.id] ? "★ " : ""}${esc(a.name)}</h2>
       ${infoFor(a) ? `<div class="kind">${infoLine(a, true)}</div>` : ""}
@@ -584,6 +831,7 @@ function render() {
         <div><b>~${s.cost} min</b>total</div>
       </div>
       <p class="why">${why(a, s)}${a.ll ? " Tem Lightning Lane / Express." : ""}</p>
+      ${guideBlock(a)}
       <div class="actions">
         <button class="btn primary" data-act="done" data-id="${a.id}">✓ Fui!</button>
         <button class="btn" data-act="skip" data-id="${a.id}">Pular</button>
@@ -595,21 +843,36 @@ function render() {
   }
 
   // lista
-  const rank = Object.fromEntries(cands.map((c, i) => [c.a.id, { i, s: c.s }]));
+  const ev = evaluate();
+  const rank = Object.fromEntries(ev.all.map((c, i) => [c.a.id, { i, s: c.s, block: c.block }]));
+  const down = attractions.filter(a => !a.isShow && a.status === "DOWN" && !state.done[a.id] && !state.skip[a.id]);
+  const isClosed = a => !a.isShow && !rank[a.id] && a.status !== "DOWN" && (a.status !== "OPERATING" || a.wait == null);
+  const showsToday = attractions.filter(a => a.isShow && nextShowTime(a));
+  const counts = { todo: ev.all.length + down.length, must: Object.keys(must).filter(id => attractions.some(a => a.id === id)).length,
+    shows: showsToday.length, done: attractions.filter(a => state.done[a.id] || state.skip[a.id]).length,
+    closed: attractions.filter(isClosed).length };
+  document.querySelectorAll("[data-tab]").forEach(b => { b.querySelector("small").textContent = counts[b.dataset.tab] || ""; });
+
+  const q = norm($("#q").value || "");
   let items;
-  if (tab === "todo") items = cands.map(c => c.a);
+  if (q) items = attractions.filter(a => matchesQuery(a, q))
+    .sort((x, y) => (rank[x.id]?.i ?? 999) - (rank[y.id]?.i ?? 999) || x.name.localeCompare(y.name));
+  else if (tab === "todo") items = [...ev.all.filter(c => !c.block).map(c => c.a), ...ev.all.filter(c => c.block).map(c => c.a), ...down];
   else if (tab === "must") items = attractions.filter(a => must[a.id]).sort((x, y) => (rank[x.id]?.i ?? 999) - (rank[y.id]?.i ?? 999));
   else if (tab === "shows") items = attractions.filter(a => a.isShow)
     .sort((x, y) => ((nextShowTime(x) ?? Infinity) - (nextShowTime(y) ?? Infinity)) || x.name.localeCompare(y.name));
   else if (tab === "done") items = attractions.filter(a => state.done[a.id] || state.skip[a.id]);
-  else items = attractions.filter(a => !a.isShow && !rank[a.id] && (a.status !== "OPERATING" || a.wait == null))
+  else items = attractions.filter(isClosed)
     .sort((x, y) => (x.status === "?") - (y.status === "?") || x.name.localeCompare(y.name));
 
   $("#list").innerHTML = items.length ? items.map(a => {
     const r = rank[a.id];
     const walk = r ? r.s.walk : (a.loc && cur.pos ? walkMin(distM(cur.pos, a.loc)) : null);
     const meta = [];
-    if (a.status !== "OPERATING") meta.push(statusPt[a.status] || a.status);
+    if (a.status === "DOWN") meta.push("⚠️ Parada agora — costuma reabrir, confira depois");
+    else if (a.status !== "OPERATING") meta.push(statusPt[a.status] || a.status);
+    if (r?.block === "show" && ev.sh) meta.push(`⏳ não cabe antes de ${esc(ev.sh.a.name)} (${fmtT(ev.sh.t)})`);
+    if (r?.block === "close") meta.push("⏳ não dá tempo antes de fechar");
     if (walk != null) meta.push(`${walk} min a pé`);
     if (r && r.s.avg != null) meta.push(`depois ~${Math.round(r.s.avg)} min`);
     if (a.type === "SHOW" && !a.isShow) meta.push(/meet|encontro/i.test(a.name) ? "personagem" : "experiência");
@@ -660,6 +923,7 @@ document.addEventListener("click", e => {
     save(); render();
     return;
   }
+  if (e.target.closest("#compassBtn")) { enableCompass(); return; }
   if (e.target.closest("#pause, #resume") && parkId) {
     state.pausedAt = state.pausedAt ? null : new Date().toISOString();
     save(); render();
@@ -668,10 +932,13 @@ document.addEventListener("click", e => {
   const t = e.target.closest("[data-tab]");
   if (t) {
     tab = t.dataset.tab;
+    $("#q").value = "";
     document.querySelectorAll("[data-tab]").forEach(x => x.classList.toggle("on", x === t));
     render();
   }
 });
+$("#q").addEventListener("input", render);
+document.addEventListener("toggle", e => { if (e.target.id === "mapd") mapOpen = e.target.open; }, true);
 $("#park").addEventListener("change", e => e.target.value && selectPark(e.target.value));
 $("#refresh").addEventListener("click", () => refreshLive().catch(err => alert("Erro ao atualizar: " + err.message)));
 setInterval(() => refreshLive().catch(() => {}), REFRESH_MS);
